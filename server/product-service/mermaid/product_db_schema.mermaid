@@ -1,0 +1,134 @@
+---
+title: Product Service — product_db (v4)
+---
+
+erDiagram
+
+    brand {
+        SERIAL id PK
+        VARCHAR name UK
+        VARCHAR code UK
+        VARCHAR tier
+        VARCHAR country
+        TIMESTAMPTZ created_at
+    }
+
+    category {
+        SERIAL id PK
+        VARCHAR name
+        VARCHAR code
+        INT parent_id FK
+        VARCHAR gender
+    }
+
+    style_tag {
+        SERIAL id PK
+        VARCHAR name UK
+    }
+
+    vibe_tag {
+        SERIAL id PK
+        VARCHAR name UK
+    }
+
+    season {
+        SERIAL id PK
+        VARCHAR name UK
+    }
+
+    product {
+        UUID id PK
+        VARCHAR sku UK
+        VARCHAR name
+        INT brand_id FK
+        INT category_id FK
+        VARCHAR type
+        VARCHAR status
+        DECIMAL purchase_price
+        VARCHAR purchase_location
+        VARCHAR currency
+        TEXT ai_notes
+        TEXT images_path
+        INT image_count
+        TEXT preview_image_key
+        TEXT product_url
+        INT version
+        BOOLEAN is_deleted
+        TIMESTAMPTZ deleted_at
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    product_details {
+        UUID product_id PK,FK
+        VARCHAR material
+        VARCHAR condition
+        VARCHAR color
+        INT year_of_release
+        BOOLEAN is_vintage
+        BOOLEAN is_collab
+        VARCHAR collab_name
+        BOOLEAN is_limited_edition
+        TEXT special_notes
+        VARCHAR size
+        VARCHAR fit
+        VARCHAR shoe_size
+        VARCHAR size_system
+        DECIMAL width_cm
+        DECIMAL height_cm
+        DECIMAL depth_cm
+        VARCHAR handle_type
+        VARCHAR metal
+        VARCHAR stone
+        VARCHAR clasp_type
+    }
+
+    product_style_tag {
+        UUID product_id PK,FK
+        INT style_tag_id PK,FK
+    }
+
+    product_vibe_tag {
+        UUID product_id PK,FK
+        INT vibe_tag_id PK,FK
+    }
+
+    product_season {
+        UUID product_id PK,FK
+        INT season_id PK,FK
+    }
+
+    similar_products {
+        UUID product_id PK,FK
+        UUID similar_product_id PK,FK
+        FLOAT similarity_score
+    }
+
+    product_history {
+        BIGSERIAL id PK
+        UUID product_id FK
+        INT version
+        JSONB changes
+        VARCHAR changed_by
+        TIMESTAMPTZ changed_at
+    }
+
+    %% Relationships
+
+    brand ||--o{ product : "has"
+    category ||--o{ product : "has"
+    category ||--o{ category : "parent"
+
+    product ||--o| product_details : "has"
+
+    product ||--o{ product_style_tag : "tagged"
+    style_tag ||--o{ product_style_tag : "tagged"
+
+    product ||--o{ product_vibe_tag : "tagged"
+    vibe_tag ||--o{ product_vibe_tag : "tagged"
+
+    product ||--o{ product_season : "tagged"
+    season ||--o{ product_season : "tagged"
+
+    product ||--o{ similar_products : "similar"
+    product ||--o{ product_history : "audit"
