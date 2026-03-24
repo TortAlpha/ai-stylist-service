@@ -1,5 +1,4 @@
 
-
 INSERT INTO style_tag (name) VALUES
     ('streetwear'), ('casual'), ('smart casual'),
     ('formal'), ('athleisure'), ('sporty');

@@ -1,11 +1,16 @@
-use super::product::ProductFull;
-use super::product_details::{
-    BagDetails, ClothingDetails, FootwearDetails, JewelryDetails,
-};
-use super::response_dto::{
-    BrandShortResponse, CategoryResponse, ProductAttributesResponse, ProductPreviewResponse,
-    ProductResponse, ProductTagsResponse, TypeDetailsResponse,
-};
+use super::super::response_dto::brand::BrandShortResponse;
+use super::super::response_dto::category::CategoryResponse;
+use super::super::response_dto::product_details::ProductAttributesResponse;
+use super::super::response_dto::product::ProductPreviewResponse;
+use super::super::response_dto::product::ProductResponse;
+use super::super::response_dto::tag::ProductTagsResponse;
+use super::super::response_dto::product_details::TypeDetailsResponse;
+
+use super::super::product::ProductFull;
+use super::super::bags_details::BagDetails;
+use super::super::clothing_details::ClothingDetails;
+use super::super::footwear_details::FootwearDetails;
+use super::super::jewelry_details::JewelryDetails;
 
 /// Wrapper that carries view data + type-specific details for full mapping
 pub struct ProductWithTypeDetails {
@@ -22,37 +27,47 @@ pub enum TypeDetails {
     Accessories,
 }
 
+/// Image URLs resolved by the service layer (presigned)
+#[derive(Debug, serde::Serialize)]
+pub struct ResolvedImageUrls {
+    pub preview_url: Option<String>,
+    pub image_urls: Vec<String>,
+}
+
 // ============================================================
-// ProductFull + TypeDetails → ProductResponse (full card)
+// ProductFull + TypeDetails + URLs → ProductResponse (full card)
 // ============================================================
 
-impl From<ProductWithTypeDetails> for ProductResponse {
-    fn from(data: ProductWithTypeDetails) -> Self {
-        let p = data.full;
+impl ProductWithTypeDetails {
+    pub fn into_response(self, urls: ResolvedImageUrls) -> ProductResponse {
+        let p = self.full;
 
-        Self {
+        ProductResponse {
             id: p.id,
             sku: p.sku,
             name: p.name,
-            original_price: p.original_price,
-            discount: p.discount,
-            final_price: p.final_price,
+            purchase_price: p.purchase_price,
+            purchase_location: p.purchase_location,
             currency: p.currency,
-            in_stock: p.in_stock,
-            preview_image_url: p.preview_image_url,
+            ai_notes: p.ai_notes,
+            preview_url: urls.preview_url,
+            image_urls: urls.image_urls,
             product_url: p.product_url,
             brand: BrandShortResponse {
                 id: p.brand_id,
                 name: p.brand_name,
                 tier: p.brand_tier,
             },
-            product_type: p.type_name,
+            brand_id: p.brand_id,
+            product_type: p.product_type,
             category: CategoryResponse {
                 name: p.category_name,
                 parent_category: p.parent_category,
                 gender: p.gender,
             },
-            status: p.status_name,
+            category_id: p.category_id,
+            status: p.status,
+            version: p.version,
             details: ProductAttributesResponse {
                 material: p.material,
                 condition: p.condition.unwrap_or_default(),
@@ -64,7 +79,7 @@ impl From<ProductWithTypeDetails> for ProductResponse {
                 is_limited_edition: p.is_limited_edition.unwrap_or(false),
                 special_notes: p.special_notes,
             },
-            type_details: map_type_details(data.type_details),
+            type_details: map_type_details(self.type_details),
             tags: ProductTagsResponse {
                 styles: p.style_tags,
                 vibes: p.vibe_tags,
@@ -73,33 +88,26 @@ impl From<ProductWithTypeDetails> for ProductResponse {
             created_at: p.created_at,
         }
     }
-}
 
-// ============================================================
-// ProductFull + TypeDetails → ProductPreviewResponse (list card)
-// ============================================================
+    pub fn into_preview(self, urls: ResolvedImageUrls) -> ProductPreviewResponse {
+        let p = self.full;
+        let size_label = make_size_label(&self.type_details);
 
-impl From<ProductWithTypeDetails> for ProductPreviewResponse {
-    fn from(data: ProductWithTypeDetails) -> Self {
-        let p = data.full;
-        let size_label = make_size_label(&data.type_details);
-
-        Self {
+        ProductPreviewResponse {
             id: p.id,
             sku: p.sku,
             name: p.name,
-            original_price: p.original_price,
-            discount: p.discount,
-            final_price: p.final_price,
+            purchase_price: p.purchase_price,
             currency: p.currency,
-            preview_image_url: p.preview_image_url,
+            preview_url: urls.preview_url,
+            image_urls: urls.image_urls,
             product_url: p.product_url,
             brand: BrandShortResponse {
                 id: p.brand_id,
                 name: p.brand_name,
                 tier: p.brand_tier,
             },
-            product_type: p.type_name,
+            product_type: p.product_type,
             category: p.category_name,
             condition: p.condition.unwrap_or_default(),
             color: p.color,
@@ -120,7 +128,8 @@ fn map_type_details(details: TypeDetails) -> TypeDetailsResponse {
         },
         TypeDetails::Footwear(d) => TypeDetailsResponse::Footwear {
             shoe_size: d.shoe_size,
-            size_system: format!("{:?}", d.size_system),
+            size_system: Some(format!("{:?}", d.size_system)),
+            insole_length_cm: d.insole_length_cm,
         },
         TypeDetails::Bags(d) => TypeDetailsResponse::Bags {
             width_cm: d.width_cm,

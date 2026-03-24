@@ -8,6 +8,7 @@ pub struct Category {
     pub code: String,
     pub parent_id: Option<i32>,
     pub gender: Gender,
+    pub product_type: ProductType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
@@ -16,4 +17,15 @@ pub enum Gender {
     Male,
     Female,
     Unisex,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum ProductType {
+    Clothing,
+    Footwear,
+    Bags,
+    Jewelry,
+    Accessories,
 }

@@ -1,11 +1,6 @@
 -- ============================================================
 -- Product Service — PostgreSQL Init Script (v4)
 -- Branded second-hand clothing store
---
--- Domain: Product catalog, details, tags, audit
--- Reservations live in Listing Service (tied to specific listings)
--- Each row = one unique item (no quantity — every piece is 1-of-1)
--- Selling/listing logic lives in Listing Service
 -- ============================================================
 
 BEGIN;
@@ -39,19 +34,23 @@ COMMENT ON COLUMN brand.tier IS 'Market segment: mass-market, premium, luxury';
 -- ------- Categories (hierarchical) -------
 
 CREATE TABLE category (
-    id        SERIAL PRIMARY KEY,
-    name      VARCHAR(200) NOT NULL,
-    code      VARCHAR(10)  NOT NULL,
-    parent_id INT          REFERENCES category(id),
-    gender    VARCHAR(10)  NOT NULL CHECK (gender IN ('male', 'female', 'unisex')),
+    id           SERIAL PRIMARY KEY,
+    name         VARCHAR(200) NOT NULL,
+    code         VARCHAR(10)  NOT NULL,
+    parent_id    INT          REFERENCES category(id),
+    gender       VARCHAR(10)  NOT NULL CHECK (gender IN ('male', 'female', 'unisex')),
+    product_type VARCHAR(20)  NOT NULL
+                 CHECK (product_type IN ('clothing', 'footwear', 'bags', 'jewelry', 'accessories')),
     UNIQUE (name, parent_id, gender)
 );
 
-CREATE INDEX idx_category_parent ON category (parent_id);
+CREATE INDEX idx_category_parent       ON category (parent_id);
+CREATE INDEX idx_category_product_type ON category (product_type);
 
-COMMENT ON TABLE  category           IS 'Hierarchical product categories (self-referencing tree)';
-COMMENT ON COLUMN category.code      IS 'Short uppercase code for SKU generation (e.g. SNK, JGR, PFJ)';
-COMMENT ON COLUMN category.parent_id IS 'Parent category FK (NULL = root category)';
+COMMENT ON TABLE  category                IS 'Hierarchical product categories (self-referencing tree)';
+COMMENT ON COLUMN category.code           IS 'Short uppercase code for SKU generation (e.g. SNK, JGR, PFJ)';
+COMMENT ON COLUMN category.parent_id      IS 'Parent category FK (NULL = root category)';
+COMMENT ON COLUMN category.product_type   IS 'Product type — determines which detail fields are relevant (inherited from root category)';
 
 -- ------- Style tags (for embeddings) -------
 
@@ -96,9 +95,6 @@ CREATE TABLE product (
     brand_id          INT            NOT NULL REFERENCES brand(id),
     category_id       INT            NOT NULL REFERENCES category(id),
 
-    type              VARCHAR(20)    NOT NULL
-                      CHECK (type IN ('clothing', 'footwear', 'bags', 'jewelry', 'accessories')),
-
     status            VARCHAR(20)    NOT NULL DEFAULT 'intake'
                       CHECK (status IN (
                           'intake', 'inspection', 'rejected', 'preparation',
@@ -108,7 +104,7 @@ CREATE TABLE product (
 
     purchase_price    DECIMAL(12, 2) CHECK (purchase_price > 0),
     purchase_location VARCHAR(500),
-    currency          VARCHAR(3)     NOT NULL DEFAULT 'EUR',
+    currency          VARCHAR(3)     NOT NULL DEFAULT 'RSD',
 
     ai_notes          TEXT,
 
@@ -127,12 +123,10 @@ CREATE TABLE product (
 
 CREATE INDEX idx_product_brand       ON product (brand_id);
 CREATE INDEX idx_product_category    ON product (category_id);
-CREATE INDEX idx_product_type        ON product (type);
 CREATE INDEX idx_product_status      ON product (status);
 CREATE INDEX idx_product_not_deleted ON product (is_deleted) WHERE is_deleted = false;
 
 COMMENT ON TABLE  product                    IS 'Core product table — one row per unique item in the store';
-COMMENT ON COLUMN product.type               IS 'Product type — determines which fields in product_details are relevant';
 COMMENT ON COLUMN product.status             IS 'Lifecycle status: intake → inspection → … → ready → reserved/sold/returned';
 COMMENT ON COLUMN product.purchase_price     IS 'How much the item was bought for (cost basis)';
 COMMENT ON COLUMN product.purchase_location  IS 'Where the item was sourced from (store, market, city, online, etc.)';
@@ -325,11 +319,6 @@ BEGIN
             jsonb_build_object('old', OLD.category_id, 'new', NEW.category_id));
     END IF;
 
-    IF OLD.type IS DISTINCT FROM NEW.type THEN
-        v_changes := v_changes || jsonb_build_object('type',
-            jsonb_build_object('old', OLD.type, 'new', NEW.type));
-    END IF;
-
     IF OLD.status IS DISTINCT FROM NEW.status THEN
         v_changes := v_changes || jsonb_build_object('status',
             jsonb_build_object('old', OLD.status, 'new', NEW.status));
@@ -399,9 +388,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Validate child category inherits product_type from parent
+CREATE OR REPLACE FUNCTION validate_category_product_type()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_parent_type VARCHAR(20);
+BEGIN
+    IF NEW.parent_id IS NOT NULL THEN
+        SELECT product_type INTO v_parent_type
+        FROM category WHERE id = NEW.parent_id;
+
+        IF v_parent_type IS DISTINCT FROM NEW.product_type THEN
+            RAISE EXCEPTION 'Child category product_type (%) must match parent product_type (%)',
+                NEW.product_type, v_parent_type;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================
 -- TRIGGERS
 -- ============================================================
+
+CREATE TRIGGER trg_category_product_type
+    BEFORE INSERT OR UPDATE ON category
+    FOR EACH ROW EXECUTE FUNCTION validate_category_product_type();
 
 CREATE TRIGGER trg_product_sku
     BEFORE INSERT ON product
@@ -435,7 +448,7 @@ SELECT
     p.version,
 
     p.status,
-    p.type,
+    c.product_type AS type,
 
     -- Brand
     b.id   AS brand_id,
@@ -535,7 +548,7 @@ BEGIN
         c.gender,
         COALESCE(cp.name, ''),
         c.name,
-        p.type,
+        c.product_type,
         b.name,
         b.tier,
         COALESCE(cp.name, ''),
