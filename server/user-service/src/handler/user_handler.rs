@@ -1,4 +1,5 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
+use tracing::{debug, info};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -31,9 +32,11 @@ async fn register(
     svc: web::Data<UserService>,
     body: web::Json<CreateUserRequest>,
 ) -> Result<HttpResponse, ServiceError> {
+    debug!(email = %body.email, "user register request");
     body.validate()
         .map_err(|e| ServiceError::BadRequest(e.to_string()))?;
     let user = svc.register(&body).await?;
+    info!(user_id = %user.id, "user registered");
     Ok(HttpResponse::Created().json(user_to_response(&user)))
 }
 
@@ -41,7 +44,10 @@ async fn get_user(
     svc: web::Data<UserService>,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, ServiceError> {
-    let user = svc.get_by_id(path.into_inner()).await?;
+    let user_id = path.into_inner();
+    debug!(%user_id, "get user request");
+    let user = svc.get_by_id(user_id).await?;
+    info!(%user_id, "user loaded");
     Ok(HttpResponse::Ok().json(user_to_response(&user)))
 }
 
@@ -50,9 +56,12 @@ async fn update_user(
     path: web::Path<Uuid>,
     body: web::Json<UpdateUserRequest>,
 ) -> Result<HttpResponse, ServiceError> {
+    let user_id = path.into_inner();
+    debug!(%user_id, "update user request");
     body.validate()
         .map_err(|e| ServiceError::BadRequest(e.to_string()))?;
-    let user = svc.update(path.into_inner(), &body).await?;
+    let user = svc.update(user_id, &body).await?;
+    info!(user_id = %user.id, "user updated");
     Ok(HttpResponse::Ok().json(user_to_response(&user)))
 }
 
@@ -60,7 +69,10 @@ async fn delete_user(
     svc: web::Data<UserService>,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, ServiceError> {
-    svc.soft_delete(path.into_inner()).await?;
+    let user_id = path.into_inner();
+    debug!(%user_id, "delete user request");
+    svc.soft_delete(user_id).await?;
+    info!(%user_id, "user soft-deleted");
     Ok(HttpResponse::NoContent().finish())
 }
 
@@ -68,7 +80,10 @@ async fn get_addresses(
     svc: web::Data<UserService>,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, ServiceError> {
-    let addresses = svc.get_addresses(path.into_inner()).await?;
+    let user_id = path.into_inner();
+    debug!(%user_id, "list addresses request");
+    let addresses = svc.get_addresses(user_id).await?;
+    info!(%user_id, count = addresses.len(), "addresses loaded");
     let resp: Vec<_> = addresses.iter().map(address_to_response).collect();
     Ok(HttpResponse::Ok().json(resp))
 }
@@ -78,9 +93,12 @@ async fn create_address(
     path: web::Path<Uuid>,
     body: web::Json<CreateAddressRequest>,
 ) -> Result<HttpResponse, ServiceError> {
+    let user_id = path.into_inner();
+    debug!(%user_id, "create address request");
     body.validate()
         .map_err(|e| ServiceError::BadRequest(e.to_string()))?;
-    let address = svc.create_address(path.into_inner(), &body).await?;
+    let address = svc.create_address(user_id, &body).await?;
+    info!(user_id = %address.owner_id, address_id = %address.id, "address created");
     Ok(HttpResponse::Created().json(address_to_response(&address)))
 }
 
@@ -89,10 +107,12 @@ async fn update_address(
     path: web::Path<(Uuid, Uuid)>,
     body: web::Json<UpdateAddressRequest>,
 ) -> Result<HttpResponse, ServiceError> {
+    let (user_id, address_id) = path.into_inner();
+    debug!(%user_id, %address_id, "update address request");
     body.validate()
         .map_err(|e| ServiceError::BadRequest(e.to_string()))?;
-    let (_, address_id) = path.into_inner();
     let address = svc.update_address(address_id, &body).await?;
+    info!(user_id = %address.owner_id, address_id = %address.id, "address updated");
     Ok(HttpResponse::Ok().json(address_to_response(&address)))
 }
 
@@ -100,7 +120,9 @@ async fn delete_address(
     svc: web::Data<UserService>,
     path: web::Path<(Uuid, Uuid)>,
 ) -> Result<HttpResponse, ServiceError> {
-    let (_, address_id) = path.into_inner();
+    let (user_id, address_id) = path.into_inner();
+    debug!(%user_id, %address_id, "delete address request");
     svc.delete_address(address_id).await?;
+    info!(%user_id, %address_id, "address deleted");
     Ok(HttpResponse::NoContent().finish())
 }

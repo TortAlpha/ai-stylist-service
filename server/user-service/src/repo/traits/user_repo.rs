@@ -1,7 +1,7 @@
+use crate::domain::request_dto::{CreateUserRequest, UpdateUserRequest};
+use crate::domain::user::User;
 use async_trait::async_trait;
 use uuid::Uuid;
-use crate::domain::user::User;
-use crate::domain::request_dto::{CreateUserRequest, UpdateUserRequest};
 
 #[cfg_attr(feature = "test-mocks", mockall::automock)]
 #[async_trait]

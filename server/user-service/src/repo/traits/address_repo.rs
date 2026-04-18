@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use uuid::Uuid;
 use crate::domain::address::Address;
 use crate::domain::request_dto::{CreateAddressRequest, UpdateAddressRequest};
+use async_trait::async_trait;
+use uuid::Uuid;
 
 #[cfg_attr(feature = "test-mocks", mockall::automock)]
 #[async_trait]
