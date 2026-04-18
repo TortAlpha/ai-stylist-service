@@ -3,7 +3,7 @@
 -- 97 brands, sorted alphabetically
 -- ============================================================
 
-TRUNCATE brand CASCADE;
+BEGIN;
 
 INSERT INTO brand (name, code, tier, country) VALUES
     -- A
@@ -147,4 +147,11 @@ INSERT INTO brand (name, code, tier, country) VALUES
     ('Yves Saint Laurent',      'YSL',  'luxury',  'France'),
 
     -- G-Star
-    ('G-Star RAW',              'GSR',  'premium', 'Netherlands');
+    ('G-Star RAW',              'GSR',  'premium', 'Netherlands')
+ON CONFLICT (code) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    tier = EXCLUDED.tier,
+    country = EXCLUDED.country;
+
+COMMIT;
