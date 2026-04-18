@@ -1,12 +1,10 @@
-use serde::Deserialize;
 use rust_decimal::Decimal;
+use serde::Deserialize;
 
-use super::super::product_details::ProductCondition;
-use super::super::clothing_details::ClothingFit;
-use super::super::bags_details::HandleType;
-use super::super::footwear_details::SizeSystem;
+use super::super::product_details::{ProductCondition, TypeDetailsInput};
+use super::super::size_info::SizeSystem;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 pub struct CreateProductDetailsRequest {
     pub condition: ProductCondition,
     pub material: Option<String>,
@@ -17,9 +15,11 @@ pub struct CreateProductDetailsRequest {
     pub collab_name: Option<String>,
     pub is_limited_edition: Option<bool>,
     pub special_notes: Option<String>,
+    pub size: SizeInput,
+    pub type_details: TypeDetailsInput,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 pub struct UpdateProductDetailsRequest {
     pub condition: Option<ProductCondition>,
     pub material: Option<String>,
@@ -30,31 +30,15 @@ pub struct UpdateProductDetailsRequest {
     pub collab_name: Option<String>,
     pub is_limited_edition: Option<bool>,
     pub special_notes: Option<String>,
+    pub size: Option<SizeInput>,
+    pub type_details: Option<TypeDetailsInput>,
 }
 
-/// Type-specific details within create request
-#[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum CreateTypeDetailsRequest {
-    Clothing {
-        size: Option<String>,
-        fit: Option<ClothingFit>,
-    },
-    Footwear {
-        shoe_size: Option<String>,
-        size_system: Option<SizeSystem>,
-        insole_length_cm: Option<Decimal>,
-    },
-    Bags {
-        width_cm: Option<Decimal>,
-        height_cm: Option<Decimal>,
-        depth_cm: Option<Decimal>,
-        handle_type: Option<HandleType>,
-    },
-    Jewelry {
-        metal: Option<String>,
-        stone: Option<String>,
-        clasp_type: Option<String>,
-    },
-    Accessories,
+/// Unified size input — validated against category.size_group at the service layer
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
+pub struct SizeInput {
+    pub size_value: Option<String>,
+    pub size_value2: Option<String>,
+    pub size_system: Option<SizeSystem>,
+    pub measurement_cm: Option<Decimal>,
 }

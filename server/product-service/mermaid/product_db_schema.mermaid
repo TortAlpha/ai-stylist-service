@@ -1,57 +1,78 @@
 ---
-title: Product Service — product_db (v4)
+title: Product Service — product_db (v9)
 ---
+
+%% Source of truth:
+%%   migrations/init/00_extensions.sql
+%%   migrations/init/01_lookup_tables.sql
+%%   migrations/init/02_product_schema.sql
+%%   migrations/init/03_functions.sql
+%%   migrations/init/04_triggers.sql
+%%   migrations/init/05_views.sql
+%%   migrations/init/06_embedding.sql
+%% Seeds under migrations/seeds/ are intentionally excluded.
+%% This ERD shows persisted tables/relations only; views and helper functions are omitted.
+%% Additional integrity rules not visible in ERD notation:
+%%   - category: partial unique root index uq_category_root_name_gender (name, gender) WHERE parent_id IS NULL
+%%   - category hierarchy: trigger guard for parent gender/product_type consistency and cycle prevention
+%%   - product status lifecycle transitions are validated by trigger
+%%   - product_details shape is validated against category.size_group/product_type by trigger
+%%   - similar_products has undirected-pair uniqueness via LEAST/GREATEST unique index
 
 erDiagram
 
     brand {
         SERIAL id PK
-        VARCHAR name UK
-        VARCHAR code UK
-        VARCHAR tier
-        VARCHAR country
+        VARCHAR(200) name UK
+        VARCHAR(10) code UK
+        VARCHAR(20) tier
+        VARCHAR(100) country
         TIMESTAMPTZ created_at
     }
 
     category {
         SERIAL id PK
-        VARCHAR name
-        VARCHAR code
+        VARCHAR(200) name
+        VARCHAR(10) code
         INT parent_id FK
-        VARCHAR gender
+        VARCHAR(10) gender
+        VARCHAR(20) product_type
+        VARCHAR(20) size_group
+    }
+
+    purchase_location {
+        SERIAL id PK
+        VARCHAR(200) name UK
+        TIMESTAMPTZ created_at
     }
 
     style_tag {
         SERIAL id PK
-        VARCHAR name UK
+        VARCHAR(100) name UK
     }
 
     vibe_tag {
         SERIAL id PK
-        VARCHAR name UK
+        VARCHAR(100) name UK
     }
 
     season {
         SERIAL id PK
-        VARCHAR name UK
+        VARCHAR(50) name UK
     }
 
     product {
         UUID id PK
-        VARCHAR sku UK
-        VARCHAR name
+        VARCHAR(64) sku UK
+        VARCHAR(500) name
         INT brand_id FK
         INT category_id FK
-        VARCHAR type
-        VARCHAR status
+        INT purchase_location_id FK
+        VARCHAR(20) status
         DECIMAL purchase_price
-        VARCHAR purchase_location
-        VARCHAR currency
+        VARCHAR(3) currency
         TEXT ai_notes
-        TEXT images_path
         INT image_count
-        TEXT preview_image_key
-        TEXT product_url
         INT version
         BOOLEAN is_deleted
         TIMESTAMPTZ deleted_at
@@ -61,26 +82,30 @@ erDiagram
 
     product_details {
         UUID product_id PK,FK
-        VARCHAR material
-        VARCHAR condition
-        VARCHAR color
+        VARCHAR(200) material
+        VARCHAR(30) condition
+        VARCHAR(100) color
         INT year_of_release
         BOOLEAN is_vintage
         BOOLEAN is_collab
-        VARCHAR collab_name
+        VARCHAR(300) collab_name
         BOOLEAN is_limited_edition
         TEXT special_notes
-        VARCHAR size
-        VARCHAR fit
-        VARCHAR shoe_size
-        VARCHAR size_system
+        VARCHAR(20) size_value
+        VARCHAR(20) size_value2
+        VARCHAR(5) size_system
+        DECIMAL measurement_cm
+        VARCHAR(20) fit
+        VARCHAR(10) shoe_width
+        DECIMAL insole_length_cm
         DECIMAL width_cm
         DECIMAL height_cm
         DECIMAL depth_cm
-        VARCHAR handle_type
-        VARCHAR metal
-        VARCHAR stone
-        VARCHAR clasp_type
+        VARCHAR(50) handle_type
+        VARCHAR(20) bag_size_label
+        VARCHAR(100) metal
+        VARCHAR(100) stone
+        VARCHAR(50) clasp_type
     }
 
     product_style_tag {
@@ -109,14 +134,52 @@ erDiagram
         UUID product_id FK
         INT version
         JSONB changes
-        VARCHAR changed_by
+        VARCHAR(200) changed_by
         TIMESTAMPTZ changed_at
+    }
+
+    product_audit_buffer {
+        BIGINT txid PK
+        UUID product_id PK,FK
+        BOOLEAN created_in_tx
+        JSONB product_changes
+        JSONB detail_changes
+        INT_ARRAY style_tag_added
+        INT_ARRAY style_tag_removed
+        INT_ARRAY vibe_tag_added
+        INT_ARRAY vibe_tag_removed
+        INT_ARRAY season_added
+        INT_ARRAY season_removed
+        VARCHAR(200) changed_by
+        TIMESTAMPTZ changed_at
+    }
+
+    product_status_history {
+        BIGSERIAL id PK
+        UUID product_id
+        INT product_version
+        VARCHAR(20) old_status
+        VARCHAR(20) new_status
+        VARCHAR(200) changed_by
+        TIMESTAMPTZ changed_at
+    }
+
+    product_outbox_event {
+        BIGSERIAL id PK
+        UUID product_id
+        VARCHAR(40) event_type
+        INT product_version
+        JSONB payload
+        TIMESTAMPTZ occurred_at
+        TIMESTAMPTZ published_at
+        INT retry_count
     }
 
     %% Relationships
 
     brand ||--o{ product : "has"
     category ||--o{ product : "has"
+    purchase_location ||--o{ product : "sources"
     category ||--o{ category : "parent"
 
     product ||--o| product_details : "has"
@@ -130,5 +193,9 @@ erDiagram
     product ||--o{ product_season : "tagged"
     season ||--o{ product_season : "tagged"
 
-    product ||--o{ similar_products : "similar"
-    product ||--o{ product_history : "audit"
+    product ||--o{ similar_products : "source"
+    product ||--o{ similar_products : "target"
+    product ||--o{ product_history : "aggregate audit"
+    product ||--o{ product_audit_buffer : "audit buffer"
+    product ||--o{ product_status_history : "status analytics"
+    product ||--o{ product_outbox_event : "outbox"

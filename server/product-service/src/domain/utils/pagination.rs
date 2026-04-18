@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
 pub struct PaginationParams {
     pub page: Option<i64>,
     pub per_page: Option<i64>,
@@ -15,6 +15,24 @@ impl PaginationParams {
     }
 }
 
+impl PaginationParams {
+    pub fn paginate<T: Serialize>(&self, items: Vec<T>, total: i64) -> PaginatedResponse<T> {
+        let (page, per_page, _) = self.resolve();
+        let total_pages = if per_page > 0 {
+            (total + per_page - 1) / per_page
+        } else {
+            0
+        };
+        PaginatedResponse {
+            items,
+            total,
+            page,
+            per_page,
+            total_pages,
+        }
+    }
+}
+
 impl Default for PaginationParams {
     fn default() -> Self {
         Self {
@@ -25,7 +43,7 @@ impl Default for PaginationParams {
 }
 
 /// Paginated list response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct PaginatedResponse<T: Serialize> {
     pub items: Vec<T>,
     pub total: i64,

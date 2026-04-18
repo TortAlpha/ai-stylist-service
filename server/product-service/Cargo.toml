@@ -15,13 +15,15 @@ chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 async-trait = "0.1"
-utoipa = { version = "5", features = ["actix_extras", "uuid", "chrono"] }
+utoipa = { version = "5", features = ["actix_extras", "uuid", "chrono", "decimal"] }
 utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 rust_decimal = { version = "1", features = ["serde-with-str"] }
 aws-sdk-s3 = "1"
 aws-config = { version = "1", features = ["behavior-version-latest"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+webp = "0.3"
 
 [features]
 test-mocks = ["mockall"]
@@ -33,3 +35,4 @@ optional = true
 [dev-dependencies]
 mockall = "0.14"
 actix-test = "0.1"
+rust_decimal_macros = "1"

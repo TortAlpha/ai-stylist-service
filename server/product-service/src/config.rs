@@ -1,5 +1,3 @@
-
-
 #[derive(Clone)]
 pub struct Config {
     pub database_url: String,
@@ -12,10 +10,10 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Self {
-        let s3_internal_url = std::env::var("AWS_ENDPOINT_URL")
-            .unwrap_or_else(|_| "http://localhost:9000".into());
-        let s3_public_url = std::env::var("S3_PUBLIC_URL")
-            .unwrap_or_else(|_| s3_internal_url.clone());
+        let s3_internal_url =
+            std::env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:9000".into());
+        let s3_public_url =
+            std::env::var("S3_PUBLIC_URL").unwrap_or_else(|_| s3_internal_url.clone());
 
         Self {
             database_url: std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
