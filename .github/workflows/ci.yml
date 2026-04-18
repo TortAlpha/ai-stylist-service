@@ -37,27 +37,14 @@ jobs:
             admin:
               - 'client/sc-admin/**'
 
-  backend:
-    name: backend (${{ matrix.service }})
+  backend-auth:
+    name: backend (auth-service)
     needs: changes
-    if: ${{ needs.changes.outputs[matrix.filter_key] == 'true' }}
+    if: ${{ needs.changes.outputs.auth == 'true' }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: auth-service
-            test_args: --features test-mocks
-            filter_key: auth
-          - service: user-service
-            test_args: --features test-mocks
-            filter_key: user
-          - service: product-service
-            test_args: ""
-            filter_key: product
     defaults:
       run:
-        working-directory: server/${{ matrix.service }}
+        working-directory: server/auth-service
     steps:
       - uses: actions/checkout@v4
 
@@ -69,35 +56,97 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: server/${{ matrix.service }} -> target
-          key: ${{ matrix.service }}
+          workspaces: server/auth-service -> target
+          key: auth-service
 
       - name: fmt
         run: cargo fmt --all -- --check
 
       - name: clippy
-        run: cargo clippy --all-targets ${{ matrix.test_args }}
+        run: cargo clippy --all-targets --features test-mocks
 
       - name: build
-        run: cargo build --all-targets ${{ matrix.test_args }}
+        run: cargo build --all-targets --features test-mocks
 
       - name: test
-        run: cargo test ${{ matrix.test_args }}
+        run: cargo test --features test-mocks
 
-  frontend:
-    name: frontend (${{ matrix.app }})
+  backend-user:
+    name: backend (user-service)
     needs: changes
-    if: ${{ needs.changes.outputs[matrix.filter_key] == 'true' }}
+    if: ${{ needs.changes.outputs.user == 'true' }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - app: sc-admin
-            filter_key: admin
     defaults:
       run:
-        working-directory: client/${{ matrix.app }}
+        working-directory: server/user-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/user-service -> target
+          key: user-service
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets --features test-mocks
+
+      - name: build
+        run: cargo build --all-targets --features test-mocks
+
+      - name: test
+        run: cargo test --features test-mocks
+
+  backend-product:
+    name: backend (product-service)
+    needs: changes
+    if: ${{ needs.changes.outputs.product == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/product-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/product-service -> target
+          key: product-service
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets
+
+      - name: build
+        run: cargo build --all-targets
+
+      - name: test
+        run: cargo test
+
+  frontend-admin:
+    name: frontend (sc-admin)
+    needs: changes
+    if: ${{ needs.changes.outputs.admin == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client/sc-admin
     steps:
       - uses: actions/checkout@v4
 
@@ -106,7 +155,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: client/${{ matrix.app }}/package-lock.json
+          cache-dependency-path: client/sc-admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
