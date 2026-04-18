@@ -1,0 +1,685 @@
+{
+  "app": {
+    "name": "SC",
+    "tagline": "Branded Second-Hand Clothing"
+  },
+  "nav": {
+    "catalog": "Catalog",
+    "myProfile": "My Profile",
+    "adminPanel": "Admin Panel",
+    "myListings": "My Listings",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "viewSite": "View Site"
+  },
+  "footer": {
+    "copyright": "© {year} SC — Branded Second-Hand Clothing",
+    "contact": "Contact"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign In",
+      "subtitle": "Welcome back",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "submit": "Sign In",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Register",
+      "loading": "Signing in...",
+      "error": "Invalid email or password"
+    },
+    "register": {
+      "title": "Create Account",
+      "subtitle": "Join us today",
+      "name": "First Name",
+      "namePlaceholder": "Enter your first name",
+      "surname": "Last Name",
+      "surnamePlaceholder": "Enter your last name",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "password": "Password",
+      "passwordPlaceholder": "Create a password",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Repeat your password",
+      "phone": "Phone Number",
+      "phonePlaceholder": "Enter your phone number",
+      "optional": "(optional)",
+      "submit": "Create Account",
+      "haveAccount": "Already have an account?",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Sign in",
+      "loading": "Creating account...",
+      "success": "Account created successfully",
+      "error": "Registration failed"
+    },
+    "validation": {
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email",
+      "passwordRequired": "Password is required",
+      "passwordMinLength": "Password must be at least 8 characters",
+      "passwordMismatch": "Passwords do not match",
+      "nameRequired": "First name is required",
+      "surnameRequired": "Last name is required"
+    }
+  },
+  "catalog": {
+    "title": "Catalog",
+    "search": "Search by name...",
+    "sort": "Sort by",
+    "sortOptions": {
+      "priceAsc": "Price: Low to High",
+      "priceDesc": "Price: High to Low",
+      "newest": "Newest First",
+      "nameAz": "Name: A-Z"
+    },
+    "results": "{count} items found",
+    "noResults": "No products found",
+    "noResultsMessage": "Try adjusting your filters or search term",
+    "filters": {
+      "title": "Filters",
+      "brand": "Brand",
+      "category": "Category",
+      "productType": "Product Type",
+      "gender": "Gender",
+      "condition": "Condition",
+      "priceRange": "Price Range",
+      "priceMin": "Min",
+      "priceMax": "Max",
+      "season": "Season",
+      "clearAll": "Clear All Filters",
+      "apply": "Apply Filters"
+    }
+  },
+  "product": {
+    "sku": "SKU",
+    "brand": "Brand",
+    "category": "Category",
+    "gender": "Gender",
+    "condition": "Condition",
+    "material": "Material",
+    "color": "Color",
+    "year": "Year",
+    "size": "Size",
+    "fit": "Fit",
+    "shoeSize": "Shoe Size",
+    "sizeSystem": "Size System",
+    "dimensions": "Dimensions (W × H × D cm)",
+    "handleType": "Handle Type",
+    "metal": "Metal",
+    "stone": "Stone",
+    "claspType": "Clasp Type",
+    "vintage": "Vintage",
+    "collab": "Collaboration",
+    "collabName": "Collaboration Name",
+    "limitedEdition": "Limited Edition",
+    "notes": "Special Notes",
+    "tags": {
+      "style": "Style Tags",
+      "vibe": "Vibe Tags",
+      "season": "Seasons"
+    },
+    "price": {
+      "original": "Original Price",
+      "discount": "Discount",
+      "final": "Final Price"
+    },
+    "status": "Status",
+    "quantity": "Quantity",
+    "inStock": "In Stock",
+    "productUrl": "Product URL",
+    "currency": "Currency",
+    "type": "Product Type"
+  },
+  "admin": {
+    "panel": "Admin Panel",
+    "products": {
+      "title": "Products",
+      "addProduct": "Add Product",
+      "editProduct": "Edit Product",
+      "columns": {
+        "preview": "Preview",
+        "sku": "SKU",
+        "name": "Name",
+        "brand": "Brand",
+        "category": "Category",
+        "type": "Type",
+        "status": "Status",
+        "price": "Price",
+        "inStock": "In Stock",
+        "quantity": "Qty",
+        "actions": "Actions"
+      },
+      "actions": {
+        "manage": "Manage",
+        "listings": "Listings",
+        "viewHistory": "View History",
+        "delete": "Delete"
+      },
+      "list": {
+        "searchPlaceholder": "Search by name or SKU",
+        "allBrands": "All brands",
+        "allTypes": "All types",
+        "allStatuses": "All statuses",
+        "allGenders": "All genders",
+        "activeFilters": "Active filters: {{count}}",
+        "clearFilters": "Clear filters",
+        "sortBy": "Sort by",
+        "order": "Order",
+        "viewCards": "Cards",
+        "viewTable": "Table",
+        "sortOrderAsc": "Sort order: ascending",
+        "sortOrderDesc": "Sort order: descending",
+        "confirmDeleteTitle": "Delete Product",
+        "confirmDeleteMessage": "Delete \"{{name}}\"?",
+        "deleteFailedSummary": "Delete failed",
+        "loadVersionFailedDetail": "Could not load product version",
+        "deleteFailedDetail": "Could not delete product",
+        "deletedSummary": "Deleted",
+        "deletedDetail": "Product deleted",
+        "actions": {
+          "view": "View",
+          "images": "Images"
+        },
+        "sort": {
+          "createdAt": "Created date",
+          "updatedAt": "Updated date",
+          "price": "Price",
+          "name": "Name"
+        }
+      },
+      "form": {
+        "loadingProduct": "Loading product...",
+        "typeDetailsTitle": "{{type}} Details",
+        "categoryOptionLabel": "{{gender}} - {{path}} ({{type}})",
+        "fields": {
+          "productName": "Product Name",
+          "purchasePrice": "Purchase Price",
+          "purchaseLocation": "Purchase Location",
+          "aiNotesOptional": "AI Notes (optional)",
+          "yearOfRelease": "Year of Release",
+          "vintageItem": "Vintage item",
+          "letterSize": "Letter Size",
+          "sizeValue": "Size Value",
+          "sizeValue2": "Size Value 2",
+          "waist": "Waist",
+          "length": "Length",
+          "ringSize": "Ring Size",
+          "measurementCm": "Measurement (cm)",
+          "hatSize": "Hat Size",
+          "shoeWidth": "Shoe Width",
+          "insoleLengthCm": "Insole Length (cm)",
+          "widthCm": "Width (cm)",
+          "heightCm": "Height (cm)",
+          "depthCm": "Depth (cm)",
+          "bagSizeLabel": "Bag Size Label"
+        },
+        "placeholders": {
+          "productName": "e.g. Gucci Marmont Bag",
+          "selectBrand": "Select brand",
+          "searchBrands": "Search brands...",
+          "selectCategory": "Select category",
+          "searchCategories": "Search categories...",
+          "selectStatus": "Select status",
+          "purchasePrice": "e.g. 250.00",
+          "selectCurrency": "Select currency",
+          "selectLocation": "Select location",
+          "aiNotes": "Notes for AI processing...",
+          "selectCondition": "Select condition",
+          "material": "e.g. Leather",
+          "color": "e.g. Black",
+          "year": "e.g. 2020",
+          "collabName": "e.g. x Nike",
+          "specialNotes": "Any special notes about this item...",
+          "letterSize": "e.g. XS, S, M, L",
+          "sizeValue": "e.g. 42 or M",
+          "selectSizeSystem": "Select system",
+          "waist": "e.g. 28",
+          "length": "e.g. 32",
+          "shoeSize": "e.g. 42",
+          "ringSize": "e.g. 7",
+          "measurementCm": "e.g. 26.5",
+          "hatSize": "e.g. M or 58",
+          "hatMeasurementCm": "e.g. 58",
+          "sizeValueGeneric": "e.g. M, 42, 28",
+          "optional": "Optional",
+          "selectFit": "Select fit",
+          "selectWidth": "Select width",
+          "insoleLengthCm": "e.g. 27.5",
+          "widthCm": "e.g. 30",
+          "heightCm": "e.g. 20",
+          "depthCm": "e.g. 10",
+          "selectHandle": "Select handle",
+          "bagSizeLabel": "e.g. Medium",
+          "metal": "e.g. Gold",
+          "stone": "e.g. Diamond",
+          "claspType": "e.g. Lobster",
+          "selectStyles": "Select styles...",
+          "selectVibes": "Select vibes...",
+          "selectSeasons": "Select seasons..."
+        },
+        "size": {
+          "selectCategoryPrompt": "Select a category to see relevant size controls.",
+          "oneSizeNote": "This category is one-size. No size inputs required.",
+          "dimensionsNote": "Dimensions are captured in type-specific bag fields (W/H/D)."
+        },
+        "typeDetails": {
+          "noneForAccessories": "No additional fields for accessories."
+        },
+        "images": {
+          "currentPreviewAlt": "Current preview",
+          "previewImage": "Preview Image",
+          "previewHint": "This image appears in product lists and cards",
+          "replacePreview": "Replace Preview",
+          "uploadPreview": "Upload Preview Image",
+          "chooseImages": "Choose Images",
+          "uploadAll": "Upload All",
+          "clearLoadedPhotos": "Clear loaded photos",
+          "uploadHint": "Drag and drop image files here, or click Choose Images",
+          "uploadLimitHint": "Max 10 images total, max 10MB each",
+          "productImageAlt": "Product image"
+        },
+        "actions": {
+          "saveChanges": "Save Changes",
+          "createProduct": "Create Product"
+        },
+        "validation": {
+          "nameRequired": "Name is required",
+          "brandRequired": "Brand is required",
+          "categoryRequired": "Category is required",
+          "conditionRequired": "Condition is required"
+        },
+        "options": {
+          "fit": {
+            "regular": "Regular",
+            "slim": "Slim",
+            "oversized": "Oversized",
+            "relaxed": "Relaxed"
+          },
+          "shoeWidths": {
+            "narrow": "Narrow",
+            "regular": "Regular",
+            "wide": "Wide"
+          }
+        },
+        "messages": {
+          "loadFailedSummary": "Load failed",
+          "loadFailedDetail": "Failed to load product",
+          "updateFailedSummary": "Update failed",
+          "updateFailedDetail": "Failed to update product",
+          "createFailedSummary": "Create failed",
+          "createFailedDetail": "Failed to create product",
+          "saveFailedSummary": "Save failed",
+          "genericError": "An error occurred",
+          "previewQueuedSummary": "Preview queued",
+          "previewQueuedDetail": "Preview upload job has been queued.",
+          "previewUploadFailed": "Failed to upload preview",
+          "imagesQueuedSummary": "Images queued",
+          "imagesQueuedDetail": "Image upload job has been queued.",
+          "imagesUploadFailed": "Failed to upload images"
+        }
+      },
+      "staleVersion": "Product was updated by someone else, please refresh.",
+      "deleteConfirm": "Are you sure you want to delete this product?",
+      "detail": {
+        "loading": "Loading product...",
+        "notFound": "Product not found",
+        "noImages": "No images uploaded",
+        "backToList": "Back to list",
+        "updateStatus": "Update Status",
+        "statusUpdated": "Product status updated",
+        "sections": {
+          "images": "Images",
+          "basicInfo": "Basic Information",
+          "details": "Details",
+          "sizeAndType": "Size & Type",
+          "tags": "Tags"
+        },
+        "fields": {
+          "purchaseLocation": "Purchase Location",
+          "version": "Version",
+          "updatedAt": "Updated At",
+          "sizeGroup": "Size Group"
+        }
+      },
+      "images": {
+        "title": "Product Images",
+        "backToDetail": "Back to detail",
+        "loading": "Loading...",
+        "count": "{{count}} images",
+        "noPreview": "No preview image set",
+        "refresh": "Refresh",
+        "deleteImage": "Delete image",
+        "confirmDeleteImage": "Delete this image?",
+        "mockNotImplemented": {
+          "summary": "Not available yet",
+          "detail": "Image delete is not yet supported by the backend."
+        },
+        "sections": {
+          "preview": "Preview Image",
+          "uploadImages": "Upload Images",
+          "gallery": "Gallery"
+        }
+      }
+    },
+    "listings": {
+      "title": "My Listings",
+      "addListing": "Add Listing",
+      "editListing": "Edit Listing",
+      "productListings": "Product Listings",
+      "columns": {
+        "product": "Product",
+        "marketplace": "Marketplace",
+        "status": "Status",
+        "listingPrice": "Listing Price",
+        "soldPrice": "Sold Price",
+        "externalUrl": "External URL",
+        "listedAt": "Listed At",
+        "actions": "Actions"
+      },
+      "actions": {
+        "showProductListings": "Show Product Listings",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "deleteConfirm": "Are you sure you want to delete this listing?",
+      "fields": {
+        "marketplace": "Marketplace",
+        "externalId": "External ID",
+        "externalUrl": "External URL",
+        "listingPrice": "Listing Price",
+        "currency": "Currency",
+        "status": "Status",
+        "soldPrice": "Sold Price"
+      }
+    },
+    "history": {
+      "title": "Product History",
+      "back": "Back to Products",
+      "version": "Version",
+      "changedAt": "Changed At",
+      "changedBy": "Changed By",
+      "changes": "Changes"
+    },
+    "brands": {
+      "title": "Brands",
+      "addBrand": "Add Brand",
+      "editBrand": "Edit Brand",
+      "columns": {
+        "id": "ID",
+        "name": "Name",
+        "code": "Code",
+        "tier": "Tier",
+        "country": "Country",
+        "createdAt": "Created"
+      },
+      "list": {
+        "searchPlaceholder": "Search by name or code",
+        "empty": "No brands found",
+        "confirmDeleteTitle": "Delete Brand",
+        "confirmDeleteMessage": "Delete \"{{name}}\"?",
+        "deleteFailedSummary": "Delete failed",
+        "deleteFailedDetail": "Could not delete brand",
+        "deletedSummary": "Deleted",
+        "deletedDetail": "Brand deleted"
+      },
+      "form": {
+        "loadingBrand": "Loading brand...",
+        "fields": {
+          "name": "Brand Name",
+          "code": "Code",
+          "tier": "Tier",
+          "country": "Country"
+        },
+        "placeholders": {
+          "name": "e.g. Gucci",
+          "code": "e.g. GUCCI",
+          "tier": "Select tier",
+          "country": "e.g. Italy"
+        },
+        "validation": {
+          "nameRequired": "Name is required",
+          "codeRequired": "Code is required",
+          "tierRequired": "Tier is required"
+        },
+        "actions": {
+          "saveChanges": "Save Changes",
+          "createBrand": "Create Brand"
+        },
+        "messages": {
+          "loadFailedSummary": "Load failed",
+          "loadFailedDetail": "Failed to load brand",
+          "updateFailedSummary": "Update failed",
+          "updateFailedDetail": "Failed to update brand",
+          "createFailedSummary": "Create failed",
+          "createFailedDetail": "Failed to create brand",
+          "saveFailedSummary": "Save failed",
+          "genericError": "An error occurred"
+        }
+      }
+    },
+    "categories": {
+      "title": "Categories",
+      "addCategory": "Add Category",
+      "editCategory": "Edit Category"
+    },
+    "tags": {
+      "title": "Tags",
+      "styleTags": "Style Tags",
+      "vibeTags": "Vibe Tags",
+      "seasons": "Seasons"
+    }
+  },
+  "profile": {
+    "title": "My Profile",
+    "editProfile": "Edit Profile",
+    "manageAddresses": "Manage Addresses",
+    "name": "First Name",
+    "surname": "Last Name",
+    "email": "Email",
+    "phone": "Phone Number",
+    "memberSince": "Member Since",
+    "status": "Status",
+    "role": "Role",
+    "update": {
+      "success": "Profile Updated",
+      "successDetail": "Your profile has been updated successfully",
+      "error": "Update Failed",
+      "errorDetail": "Could not update your profile"
+    },
+    "status.active": "Active",
+    "status.inactive": "Inactive",
+    "role.admin": "Administrator",
+    "role.user": "User",
+    "addresses": {
+      "title": "Addresses",
+      "addAddress": "Add Address",
+      "editAddress": "Edit Address",
+      "deleteConfirm": "Are you sure you want to delete this address?",
+      "noAddresses": "No addresses added yet",
+      "fields": {
+        "street": "Street",
+        "buildingNum": "Building Number",
+        "floorNum": "Floor",
+        "apartmentNum": "Apartment",
+        "postIndex": "Postal Code"
+      },
+      "add": {
+        "success": "Address Added",
+        "error": "Could not add address"
+      },
+      "update": {
+        "success": "Address Updated",
+        "error": "Could not update address"
+      },
+      "delete": {
+        "success": "Address Deleted",
+        "error": "Could not delete address"
+      }
+    }
+  },
+  "statuses": {
+    "intake": "Intake",
+    "inspection": "Inspection",
+    "rejected": "Rejected",
+    "preparation": "Preparation",
+    "photo_queue": "Photo Queue",
+    "photo_done": "Photo Done",
+    "ready": "Ready for Sale",
+    "reserved": "Reserved",
+    "sold": "Sold",
+    "returned": "Returned"
+  },
+  "listingStatuses": {
+    "active": "Active",
+    "paused": "Paused",
+    "sold": "Sold",
+    "removed": "Removed"
+  },
+  "conditions": {
+    "new_with_tags": "New with Tags",
+    "excellent": "Excellent",
+    "good": "Good",
+    "fair": "Fair"
+  },
+  "productTypes": {
+    "clothing": "Clothing",
+    "footwear": "Footwear",
+    "bags": "Bags",
+    "jewelry": "Jewelry",
+    "accessories": "Accessories"
+  },
+  "genders": {
+    "male": "Male",
+    "female": "Female",
+    "unisex": "Unisex"
+  },
+  "brandTiers": {
+    "mass": "Mass Market",
+    "premium": "Premium",
+    "luxury": "Luxury"
+  },
+  "seasons": {
+    "summer": "Summer",
+    "winter": "Winter",
+    "demi-season": "Demi-Season",
+    "all-season": "All Season"
+  },
+  "marketplaces": {
+    "TG": "Telegram",
+    "EBAY": "eBay",
+    "ETSY": "Etsy",
+    "KP": "KupujemProdajem"
+  },
+  "fitTypes": {
+    "regular": "Regular",
+    "slim": "Slim",
+    "oversized": "Oversized",
+    "relaxed": "Relaxed"
+  },
+  "sizeSystems": {
+    "EU": "EU",
+    "US": "US",
+    "UK": "UK"
+  },
+  "handleTypes": {
+    "shoulder": "Shoulder",
+    "crossbody": "Crossbody",
+    "hand": "Hand",
+    "backpack": "Backpack",
+    "tote": "Tote"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "user": "User"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "back": "Back",
+    "close": "Close",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "all": "All",
+    "none": "None",
+    "noData": "No data available",
+    "required": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "minLength": "Minimum {min} characters required",
+    "maxLength": "Maximum {max} characters allowed",
+    "min": "Minimum value is {min}",
+    "max": "Maximum value is {max}",
+    "actions": "Actions",
+    "page": "Page",
+    "of": "of",
+    "total": "Total",
+    "rows": "rows",
+    "language": "Language",
+    "darkTheme": "Dark",
+    "lightTheme": "Light",
+    "preview": "Preview"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "notFound": "Page not found",
+    "unauthorized": "You are not authorized to view this page",
+    "forbidden": "Access denied"
+  },
+  "imageGallery": {
+    "clickToEnlarge": "Click to enlarge",
+    "close": "Close",
+    "previous": "Previous",
+    "next": "Next",
+    "noImages": "No images available"
+  },
+  "breadcrumbs": {
+    "home": "Home",
+    "catalog": "Catalog",
+    "products": "Products",
+    "admin": "Admin",
+    "history": "History",
+    "listings": "Listings"
+  },
+  "emptyState": {
+    "noProducts": "No products found",
+    "noProductsMessage": "Try adjusting your search or filters",
+    "noListings": "No listings yet",
+    "noListingsMessage": "Add a listing to get started",
+    "default": "No items found"
+  },
+  "confirm": {
+    "deleteTitle": "Confirm Delete",
+    "deleteMessage": "This action cannot be undone. Are you sure?",
+    "acceptLabel": "Yes, Delete",
+    "rejectLabel": "Cancel"
+  },
+  "form": {
+    "sections": {
+      "basicInfo": "Basic Information",
+      "details": "Details",
+      "typeDetails": "Type-Specific Details",
+      "images": "Images",
+      "tags": "Tags"
+    },
+    "images": {
+      "upload": "Upload Images",
+      "uploadPreview": "Upload Preview Image",
+      "dragDrop": "Drag to reorder",
+      "deleteImage": "Delete Image",
+      "maxImages": "Maximum 10 images",
+      "noImages": "No images yet"
+    }
+  }
+}

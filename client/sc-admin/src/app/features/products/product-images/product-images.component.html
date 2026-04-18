@@ -1,0 +1,245 @@
+<div class="product-images-page">
+  @if (loading() && !product()) {
+    <div class="p-section muted">{{ 'admin.products.images.loading' | translate }}</div>
+  } @else if (product(); as p) {
+    <header class="detail-hero p-section">
+      <div class="hero-main">
+        @if (p.preview_url) {
+          <img class="hero-thumb" [src]="p.preview_url.thumb" [alt]="p.name" />
+        } @else {
+          <div class="hero-thumb hero-thumb--empty" aria-hidden="true">
+            <i class="pi pi-image"></i>
+          </div>
+        }
+
+        <div class="hero-text">
+          <h1 class="page-title">{{ 'admin.products.images.title' | translate }}</h1>
+          <p class="hero-subtitle">{{ p.name }}</p>
+          <p class="hero-sku">
+            <span class="sku-label">{{ 'product.sku' | translate }}:</span>
+            <span class="mono">{{ p.sku }}</span>
+          </p>
+
+          <div class="hero-badges">
+            <app-status-badge [status]="p.status" />
+            <span class="info-chip">
+              <i class="pi pi-images"></i>
+              {{ 'admin.products.images.count' | translate: { count: p.image_urls.length } }}
+            </span>
+            @if (p.preview_url) {
+              <span class="info-chip info-chip--accent">
+                <i class="pi pi-star-fill"></i>
+                {{ 'common.preview' | translate }}
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <p-button
+          [label]="'admin.products.images.backToDetail' | translate"
+          icon="pi pi-arrow-left"
+          severity="secondary"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id])"
+        />
+        <p-button
+          [label]="'common.edit' | translate"
+          icon="pi pi-pencil"
+          severity="info"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id, 'edit'])"
+        />
+        <p-button
+          [label]="'admin.products.actions.listings' | translate"
+          icon="pi pi-list"
+          severity="secondary"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id, 'listings'])"
+        />
+        <p-button
+          [label]="'admin.products.actions.viewHistory' | translate"
+          icon="pi pi-history"
+          severity="secondary"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id, 'history'])"
+        />
+        <p-button
+          [label]="'common.delete' | translate"
+          icon="pi pi-trash"
+          severity="danger"
+          size="small"
+          (onClick)="confirmDelete()"
+        />
+      </div>
+    </header>
+
+    <div class="upload-grid">
+      <section class="p-section">
+        <header class="section-header">
+          <h2 class="section-title">
+            <i class="pi pi-star"></i>
+            {{ 'admin.products.images.sections.preview' | translate }}
+          </h2>
+          @if (uploadingPreview()) {
+            <span class="section-meta uploading">
+              <i class="pi pi-spin pi-spinner"></i>
+            </span>
+          }
+        </header>
+
+        <div class="preview-panel">
+          @if (p.preview_url; as preview) {
+            <div class="preview-frame">
+              <p-image
+                [src]="preview.medium"
+                [previewImageSrc]="preview.full"
+                [alt]="'admin.products.form.images.currentPreviewAlt' | translate"
+                [preview]="true"
+                imageClass="preview-image"
+              />
+            </div>
+          } @else {
+            <div class="preview-frame preview-frame--empty">
+              <i class="pi pi-image"></i>
+              <span>{{ 'admin.products.images.noPreview' | translate }}</span>
+            </div>
+          }
+
+          <p class="hint">{{ 'admin.products.form.images.previewHint' | translate }}</p>
+
+          <p-fileUpload
+            #previewUpload
+            mode="basic"
+            name="preview"
+            accept="image/*"
+            [customUpload]="true"
+            (uploadHandler)="onPreviewUpload($event, previewUpload)"
+            [auto]="true"
+            [chooseLabel]="(p.preview_url ? 'admin.products.form.images.replacePreview' : 'admin.products.form.images.uploadPreview') | translate"
+            chooseIcon="pi pi-upload"
+            chooseStyleClass="upload-cta"
+            styleClass="upload-cta-wrap"
+            [maxFileSize]="50000000"
+            [disabled]="uploadingPreview()"
+          />
+        </div>
+      </section>
+
+      <section class="p-section">
+        <header class="section-header">
+          <h2 class="section-title">
+            <i class="pi pi-cloud-upload"></i>
+            {{ 'admin.products.images.sections.uploadImages' | translate }}
+          </h2>
+          @if (uploadingImages()) {
+            <span class="section-meta uploading">
+              <i class="pi pi-spin pi-spinner"></i>
+            </span>
+          }
+        </header>
+
+        <div class="upload-callout">
+          <i class="pi pi-bolt" aria-hidden="true"></i>
+          <div class="upload-callout-copy">
+            <p>{{ 'admin.products.form.images.uploadHint' | translate }}</p>
+            <small>{{ 'admin.products.form.images.uploadLimitHint' | translate }}</small>
+          </div>
+        </div>
+
+        <p-fileUpload
+          #imagesUpload
+          name="images"
+          [multiple]="true"
+          accept="image/*"
+          [customUpload]="true"
+          (uploadHandler)="onImagesUpload($event, imagesUpload)"
+          [auto]="false"
+          [chooseLabel]="'admin.products.form.images.chooseImages' | translate"
+          chooseIcon="pi pi-plus"
+          chooseStyleClass="upload-cta upload-cta--secondary"
+          [uploadLabel]="'admin.products.form.images.uploadAll' | translate"
+          uploadIcon="pi pi-cloud-upload"
+          uploadStyleClass="upload-cta upload-cta--primary"
+          [cancelLabel]="'admin.products.form.images.clearLoadedPhotos' | translate"
+          cancelIcon="pi pi-trash"
+          cancelStyleClass="upload-cta upload-cta--secondary"
+          styleClass="upload-cta-wrap"
+          [showCancelButton]="true"
+          [maxFileSize]="50000000"
+          [disabled]="uploadingImages()"
+        >
+          <ng-template pTemplate="empty">
+            <div class="upload-empty">
+              <i class="pi pi-cloud-upload"></i>
+              <p>{{ 'admin.products.form.images.uploadHint' | translate }}</p>
+              <small>{{ 'admin.products.form.images.uploadLimitHint' | translate }}</small>
+            </div>
+          </ng-template>
+        </p-fileUpload>
+      </section>
+    </div>
+
+    <section class="p-section">
+      <header class="section-header">
+        <h2 class="section-title">
+          <i class="pi pi-images"></i>
+          {{ 'admin.products.images.sections.gallery' | translate }}
+        </h2>
+        <div class="section-tools">
+          <span class="section-meta">{{ galleryImages().length }}</span>
+          <p-button
+            [label]="'admin.products.images.refresh' | translate"
+            [icon]="refreshing() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"
+            severity="secondary"
+            size="small"
+            [disabled]="refreshing()"
+            (onClick)="refreshGallery()"
+          />
+        </div>
+      </header>
+
+      @if (galleryImages().length > 0) {
+        <div class="image-grid">
+          @for (url of galleryImages(); track url.full) {
+            <div class="image-card" [class.is-preview]="url.full === p.preview_url?.full">
+              <p-image
+                [src]="url.medium"
+                [previewImageSrc]="url.full"
+                [alt]="'admin.products.form.images.productImageAlt' | translate"
+                [preview]="true"
+                imageClass="image-thumb"
+              />
+              @if (url.full === p.preview_url?.full) {
+                <span class="preview-badge">
+                  <i class="pi pi-star-fill"></i>
+                  {{ 'common.preview' | translate }}
+                </span>
+              }
+              <button
+                type="button"
+                class="image-delete-btn"
+                [attr.aria-label]="'admin.products.images.deleteImage' | translate"
+                [title]="'admin.products.images.deleteImage' | translate"
+                (click)="confirmImageDelete(url)"
+              >
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <i class="pi pi-image"></i>
+          <p>{{ 'admin.products.detail.noImages' | translate }}</p>
+        </div>
+      }
+    </section>
+  } @else {
+    <div class="p-section muted">{{ 'admin.products.detail.notFound' | translate }}</div>
+  }
+
+  <p-confirmDialog />
+  <p-toast />
+</div>

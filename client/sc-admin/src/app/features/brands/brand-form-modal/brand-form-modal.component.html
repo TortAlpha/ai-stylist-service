@@ -1,0 +1,107 @@
+<p-dialog
+  [header]="brandId() ? ('admin.brands.editBrand' | translate) : ('admin.brands.addBrand' | translate)"
+  [visible]="visible()"
+  (visibleChange)="visibleChange.emit($event)"
+  [modal]="true"
+  [style]="{ width: '620px', maxWidth: '98vw' }"
+  [maximizable]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [blockScroll]="true"
+  styleClass="brand-form-dialog"
+>
+  @if (loadingBrand()) {
+    <div class="loading-state">
+      <i class="pi pi-spin pi-spinner" style="font-size:2rem;"></i>
+      <span>{{ 'admin.brands.form.loadingBrand' | translate }}</span>
+    </div>
+  } @else {
+    <form [formGroup]="form" class="brand-form">
+      <section class="form-section">
+        <h3 class="section-title">{{ 'form.sections.basicInfo' | translate }}</h3>
+        <div class="form-grid">
+
+          <div class="field full-width">
+            <label for="name" class="required-label">{{ 'admin.brands.form.fields.name' | translate }}</label>
+            <input
+              pInputText
+              id="name"
+              formControlName="name"
+              [placeholder]="'admin.brands.form.placeholders.name' | translate"
+              class="w-full"
+            />
+            @if (form.get('name')?.invalid && form.get('name')?.touched) {
+              <small class="error-text">{{ 'admin.brands.form.validation.nameRequired' | translate }}</small>
+            }
+          </div>
+
+          <div class="field">
+            <label for="code" class="required-label">{{ 'admin.brands.form.fields.code' | translate }}</label>
+            <input
+              pInputText
+              id="code"
+              formControlName="code"
+              [placeholder]="'admin.brands.form.placeholders.code' | translate"
+              class="w-full"
+            />
+            @if (form.get('code')?.invalid && form.get('code')?.touched) {
+              <small class="error-text">{{ 'admin.brands.form.validation.codeRequired' | translate }}</small>
+            }
+          </div>
+
+          <div class="field">
+            <label for="tier" class="required-label">{{ 'admin.brands.form.fields.tier' | translate }}</label>
+            <p-select
+              id="tier"
+              formControlName="tier"
+              [options]="tierOptions"
+              optionLabel="label"
+              optionValue="value"
+              [placeholder]="'admin.brands.form.placeholders.tier' | translate"
+              styleClass="w-full"
+            />
+            @if (form.get('tier')?.invalid && form.get('tier')?.touched) {
+              <small class="error-text">{{ 'admin.brands.form.validation.tierRequired' | translate }}</small>
+            }
+          </div>
+
+          <div class="field full-width">
+            <label for="country">{{ 'admin.brands.form.fields.country' | translate }}</label>
+            <input
+              pInputText
+              id="country"
+              formControlName="country"
+              [placeholder]="'admin.brands.form.placeholders.country' | translate"
+              class="w-full"
+            />
+          </div>
+
+        </div>
+      </section>
+    </form>
+  }
+
+  <ng-template pTemplate="footer">
+    <div class="modal-footer">
+      <div class="footer-actions">
+        <p-button
+          [label]="'common.cancel' | translate"
+          severity="secondary"
+          (onClick)="onCancel()"
+          [disabled]="saving()"
+        />
+        <p-button
+          [label]="brandId()
+            ? ('admin.brands.form.actions.saveChanges' | translate)
+            : ('admin.brands.form.actions.createBrand' | translate)"
+          icon="pi pi-check"
+          (onClick)="onSubmit()"
+          [loading]="saving()"
+          [disabled]="form.invalid || saving()"
+        />
+      </div>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<p-toast />

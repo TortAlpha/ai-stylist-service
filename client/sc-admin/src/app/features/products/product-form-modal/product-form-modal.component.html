@@ -1,0 +1,570 @@
+<p-dialog
+  [header]="productId() ? ('admin.products.editProduct' | translate) : ('admin.products.addProduct' | translate)"
+  [visible]="visible()"
+  (visibleChange)="visibleChange.emit($event)"
+  [modal]="true"
+  [style]="{ width: '980px', maxWidth: '98vw' }"
+  [maximizable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [blockScroll]="true"
+  styleClass="product-form-dialog"
+>
+  @if (loadingProduct()) {
+    <div class="loading-state">
+      <i class="pi pi-spin pi-spinner" style="font-size:2rem;"></i>
+      <span>{{ 'admin.products.form.loadingProduct' | translate }}</span>
+    </div>
+  } @else {
+    <form [formGroup]="form" class="product-form">
+      @if (productId() && existingProduct; as product) {
+        <section class="product-preview-banner">
+          @if (product.preview_url; as previewUrl) {
+            <img
+              [src]="previewUrl.medium"
+              [attr.alt]="'admin.products.form.images.currentPreviewAlt' | translate"
+              class="product-preview-image"
+            />
+          } @else {
+            <div class="product-preview-image product-preview-image--empty">
+              <i class="pi pi-image"></i>
+            </div>
+          }
+          <div class="product-preview-copy">
+            <span class="product-preview-overline">{{ 'common.preview' | translate }}</span>
+            <strong>{{ product.name }}</strong>
+            <small>{{ 'product.sku' | translate }}: <span>{{ product.sku }}</span></small>
+          </div>
+        </section>
+      }
+
+      <!-- SECTION: Basic Info -->
+      <section class="form-section">
+        <h3 class="section-title">{{ 'form.sections.basicInfo' | translate }}</h3>
+        <div class="form-grid">
+
+          <div class="field full-width">
+            <label for="name" class="required-label">{{ 'admin.products.form.fields.productName' | translate }}</label>
+            <input pInputText id="name" formControlName="name" [placeholder]="'admin.products.form.placeholders.productName' | translate" class="w-full" />
+            @if (form.get('name')?.invalid && form.get('name')?.touched) {
+              <small class="error-text">{{ 'admin.products.form.validation.nameRequired' | translate }}</small>
+            }
+          </div>
+
+          <div class="field">
+            <label for="brand_id" class="required-label">{{ 'product.brand' | translate }}</label>
+            <div class="brand-select-row">
+              <p-select
+                id="brand_id"
+                formControlName="brand_id"
+                [options]="brands"
+                optionLabel="name"
+                optionValue="id"
+                [placeholder]="'admin.products.form.placeholders.selectBrand' | translate"
+                [filter]="true"
+                [filterPlaceholder]="'admin.products.form.placeholders.searchBrands' | translate"
+                styleClass="w-full"
+              />
+              <p-button
+                type="button"
+                icon="pi pi-plus"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="openBrandModal()"
+                [pTooltip]="'admin.brands.addBrand' | translate"
+                tooltipPosition="top"
+                [attr.aria-label]="'admin.brands.addBrand' | translate"
+              />
+            </div>
+            @if (form.get('brand_id')?.invalid && form.get('brand_id')?.touched) {
+              <small class="error-text">{{ 'admin.products.form.validation.brandRequired' | translate }}</small>
+            }
+          </div>
+
+          <div class="field">
+            <label for="category_id" class="required-label">{{ 'product.category' | translate }}</label>
+            <p-select
+              id="category_id"
+              formControlName="category_id"
+              [options]="categoryOptions"
+              optionLabel="label"
+              optionValue="value"
+              [placeholder]="'admin.products.form.placeholders.selectCategory' | translate"
+              [filter]="true"
+              [filterPlaceholder]="'admin.products.form.placeholders.searchCategories' | translate"
+              styleClass="w-full"
+              (onChange)="onCategoryChange()"
+            />
+            @if (form.get('category_id')?.invalid && form.get('category_id')?.touched) {
+              <small class="error-text">{{ 'admin.products.form.validation.categoryRequired' | translate }}</small>
+            }
+          </div>
+
+          <div class="field">
+            <label for="status">{{ 'product.status' | translate }}</label>
+            <p-select
+              id="status"
+              formControlName="status"
+              [options]="statuses"
+              optionLabel="label"
+              optionValue="value"
+              [placeholder]="'admin.products.form.placeholders.selectStatus' | translate"
+              styleClass="w-full"
+            />
+          </div>
+
+          <div class="field">
+            <label for="purchase_price">{{ 'admin.products.form.fields.purchasePrice' | translate }}</label>
+            <input pInputText id="purchase_price" formControlName="purchase_price" [placeholder]="'admin.products.form.placeholders.purchasePrice' | translate" class="w-full" />
+          </div>
+
+          <div class="field">
+            <label for="currency">{{ 'product.currency' | translate }}</label>
+            <p-select
+              id="currency"
+              formControlName="currency"
+              [options]="currencies"
+              [placeholder]="'admin.products.form.placeholders.selectCurrency' | translate"
+              styleClass="w-full"
+            />
+          </div>
+
+          <div class="field">
+            <label for="purchase_location_id">{{ 'admin.products.form.fields.purchaseLocation' | translate }}</label>
+            <p-select
+              id="purchase_location_id"
+              formControlName="purchase_location_id"
+              [options]="purchaseLocations"
+              optionLabel="name"
+              optionValue="id"
+              [placeholder]="'admin.products.form.placeholders.selectLocation' | translate"
+              [showClear]="true"
+              styleClass="w-full"
+            />
+          </div>
+
+          <div class="field full-width">
+            <label for="ai_notes">{{ 'admin.products.form.fields.aiNotesOptional' | translate }}</label>
+            <textarea
+              pInputTextarea
+              id="ai_notes"
+              formControlName="ai_notes"
+              rows="2"
+              [placeholder]="'admin.products.form.placeholders.aiNotes' | translate"
+              class="w-full"
+            ></textarea>
+          </div>
+
+        </div>
+      </section>
+
+      <p-divider />
+
+      <!-- SECTION: Details -->
+      <section class="form-section" formGroupName="details">
+        <h3 class="section-title">{{ 'form.sections.details' | translate }}</h3>
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="condition" class="required-label">{{ 'product.condition' | translate }}</label>
+            <p-select
+              id="condition"
+              formControlName="condition"
+              [options]="conditionOptions"
+              optionLabel="label"
+              optionValue="value"
+              [placeholder]="'admin.products.form.placeholders.selectCondition' | translate"
+              styleClass="w-full"
+            />
+            @if (form.get('details.condition')?.invalid && form.get('details.condition')?.touched) {
+              <small class="error-text">{{ 'admin.products.form.validation.conditionRequired' | translate }}</small>
+            }
+          </div>
+
+          <div class="field">
+            <label for="material">{{ 'product.material' | translate }}</label>
+            <input pInputText id="material" formControlName="material" [placeholder]="'admin.products.form.placeholders.material' | translate" class="w-full" />
+          </div>
+
+          <div class="field">
+            <label for="color">{{ 'product.color' | translate }}</label>
+            <input pInputText id="color" formControlName="color" [placeholder]="'admin.products.form.placeholders.color' | translate" class="w-full" />
+          </div>
+
+          <div class="field">
+            <label for="year_of_release">{{ 'admin.products.form.fields.yearOfRelease' | translate }}</label>
+            <p-inputNumber
+              id="year_of_release"
+              formControlName="year_of_release"
+              [useGrouping]="false"
+              [min]="1900"
+              [max]="2030"
+              [placeholder]="'admin.products.form.placeholders.year' | translate"
+              styleClass="w-full"
+            />
+          </div>
+
+          <div class="field checkbox-row">
+            <p-checkbox formControlName="is_vintage" [binary]="true" inputId="is_vintage" />
+            <label for="is_vintage" class="checkbox-label">{{ 'admin.products.form.fields.vintageItem' | translate }}</label>
+          </div>
+
+          <div class="field checkbox-row">
+            <p-checkbox formControlName="is_collab" [binary]="true" inputId="is_collab" (onChange)="onCollabChange()" />
+            <label for="is_collab" class="checkbox-label">{{ 'product.collab' | translate }}</label>
+          </div>
+
+          @if (form.get('details.is_collab')?.value) {
+            <div class="field">
+              <label for="collab_name">{{ 'product.collabName' | translate }}</label>
+              <input pInputText id="collab_name" formControlName="collab_name" [placeholder]="'admin.products.form.placeholders.collabName' | translate" class="w-full" />
+            </div>
+          }
+
+          <div class="field checkbox-row">
+            <p-checkbox formControlName="is_limited_edition" [binary]="true" inputId="is_limited_edition" />
+            <label for="is_limited_edition" class="checkbox-label">{{ 'product.limitedEdition' | translate }}</label>
+          </div>
+
+          <div class="field full-width">
+            <label for="special_notes">{{ 'product.notes' | translate }}</label>
+            <textarea
+              pInputTextarea
+              id="special_notes"
+              formControlName="special_notes"
+              rows="3"
+              [placeholder]="'admin.products.form.placeholders.specialNotes' | translate"
+              class="w-full"
+            ></textarea>
+          </div>
+
+        </div>
+      </section>
+
+      <p-divider />
+
+      <!-- SECTION: Size -->
+      <section class="form-section" formGroupName="size">
+        <h3 class="section-title">{{ 'product.size' | translate }}</h3>
+        <div class="form-grid">
+          @if (!selectedSizeGroup()) {
+            <p class="no-extra-fields">{{ 'admin.products.form.size.selectCategoryPrompt' | translate }}</p>
+          }
+
+          @switch (selectedSizeGroup()) {
+            @case ('one_size') {
+              <p class="no-extra-fields">{{ 'admin.products.form.size.oneSizeNote' | translate }}</p>
+            }
+            @case ('letter') {
+              <div class="field">
+                <label for="size_value">{{ 'admin.products.form.fields.letterSize' | translate }}</label>
+                <input pInputText id="size_value" formControlName="size_value" [placeholder]="'admin.products.form.placeholders.letterSize' | translate" class="w-full" />
+              </div>
+            }
+            @case ('letter_or_numeric') {
+              <div class="field">
+                <label for="size_value">{{ 'admin.products.form.fields.sizeValue' | translate }}</label>
+                <input pInputText id="size_value" formControlName="size_value" [placeholder]="'admin.products.form.placeholders.sizeValue' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="size_system">{{ 'product.sizeSystem' | translate }}</label>
+                <p-select
+                  id="size_system"
+                  formControlName="size_system"
+                  [options]="sizeSystems"
+                  optionLabel="label"
+                  optionValue="value"
+                  [placeholder]="'admin.products.form.placeholders.selectSizeSystem' | translate"
+                  styleClass="w-full"
+                />
+              </div>
+            }
+            @case ('waist_length') {
+              <div class="field">
+                <label for="size_value">{{ 'admin.products.form.fields.waist' | translate }}</label>
+                <input pInputText id="size_value" formControlName="size_value" [placeholder]="'admin.products.form.placeholders.waist' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="size_value2">{{ 'admin.products.form.fields.length' | translate }}</label>
+                <input pInputText id="size_value2" formControlName="size_value2" [placeholder]="'admin.products.form.placeholders.length' | translate" class="w-full" />
+              </div>
+            }
+            @case ('shoe') {
+              <div class="field">
+                <label for="size_value">{{ 'product.shoeSize' | translate }}</label>
+                <input pInputText id="size_value" formControlName="size_value" [placeholder]="'admin.products.form.placeholders.shoeSize' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="size_system">{{ 'product.sizeSystem' | translate }}</label>
+                <p-select
+                  id="size_system"
+                  formControlName="size_system"
+                  [options]="sizeSystems"
+                  optionLabel="label"
+                  optionValue="value"
+                  [placeholder]="'admin.products.form.placeholders.selectSizeSystem' | translate"
+                  styleClass="w-full"
+                />
+              </div>
+            }
+            @case ('ring') {
+              <div class="field">
+                <label for="size_value">{{ 'admin.products.form.fields.ringSize' | translate }}</label>
+                <input pInputText id="size_value" formControlName="size_value" [placeholder]="'admin.products.form.placeholders.ringSize' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="size_system">{{ 'product.sizeSystem' | translate }}</label>
+                <p-select
+                  id="size_system"
+                  formControlName="size_system"
+                  [options]="sizeSystems"
+                  optionLabel="label"
+                  optionValue="value"
+                  [placeholder]="'admin.products.form.placeholders.selectSizeSystem' | translate"
+                  styleClass="w-full"
+                />
+              </div>
+            }
+            @case ('measurement_cm') {
+              <div class="field">
+                <label for="measurement_cm">{{ 'admin.products.form.fields.measurementCm' | translate }}</label>
+                <input pInputText id="measurement_cm" formControlName="measurement_cm" [placeholder]="'admin.products.form.placeholders.measurementCm' | translate" class="w-full" />
+              </div>
+            }
+            @case ('dimensions') {
+              <p class="no-extra-fields">{{ 'admin.products.form.size.dimensionsNote' | translate }}</p>
+            }
+            @case ('hat') {
+              <div class="field">
+                <label for="size_value">{{ 'admin.products.form.fields.hatSize' | translate }}</label>
+                <input pInputText id="size_value" formControlName="size_value" [placeholder]="'admin.products.form.placeholders.hatSize' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="measurement_cm">{{ 'admin.products.form.fields.measurementCm' | translate }}</label>
+                <input pInputText id="measurement_cm" formControlName="measurement_cm" [placeholder]="'admin.products.form.placeholders.hatMeasurementCm' | translate" class="w-full" />
+              </div>
+            }
+            @default {
+              <div class="field">
+                <label for="size_value">{{ 'admin.products.form.fields.sizeValue' | translate }}</label>
+                <input pInputText id="size_value" formControlName="size_value" [placeholder]="'admin.products.form.placeholders.sizeValueGeneric' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="size_value2">{{ 'admin.products.form.fields.sizeValue2' | translate }}</label>
+                <input pInputText id="size_value2" formControlName="size_value2" [placeholder]="'admin.products.form.placeholders.optional' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="size_system">{{ 'product.sizeSystem' | translate }}</label>
+                <p-select
+                  id="size_system"
+                  formControlName="size_system"
+                  [options]="sizeSystems"
+                  optionLabel="label"
+                  optionValue="value"
+                  [placeholder]="'admin.products.form.placeholders.selectSizeSystem' | translate"
+                  styleClass="w-full"
+                />
+              </div>
+              <div class="field">
+                <label for="measurement_cm">{{ 'admin.products.form.fields.measurementCm' | translate }}</label>
+                <input pInputText id="measurement_cm" formControlName="measurement_cm" [placeholder]="'admin.products.form.placeholders.measurementCm' | translate" class="w-full" />
+              </div>
+            }
+          }
+        </div>
+      </section>
+
+      <p-divider />
+
+      <!-- SECTION: Type-Specific Details -->
+      @if (selectedProductType()) {
+        <section class="form-section" formGroupName="type_details">
+          <h3 class="section-title">{{ 'admin.products.form.typeDetailsTitle' | translate: { type: getTypeLabel(selectedProductType()!) } }}</h3>
+          <div class="form-grid">
+
+            @switch (selectedProductType()) {
+              @case ('clothing') {
+                <div class="field">
+                  <label for="fit">{{ 'product.fit' | translate }}</label>
+                  <p-select
+                    id="fit"
+                    formControlName="fit"
+                    [options]="fitOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    [placeholder]="'admin.products.form.placeholders.selectFit' | translate"
+                    styleClass="w-full"
+                  />
+                </div>
+              }
+              @case ('footwear') {
+                <div class="field">
+                  <label for="shoe_width">{{ 'admin.products.form.fields.shoeWidth' | translate }}</label>
+                  <p-select
+                    id="shoe_width"
+                    formControlName="shoe_width"
+                    [options]="shoeWidths"
+                    optionLabel="label"
+                    optionValue="value"
+                    [placeholder]="'admin.products.form.placeholders.selectWidth' | translate"
+                    styleClass="w-full"
+                  />
+                </div>
+                <div class="field">
+                  <label for="insole_length_cm">{{ 'admin.products.form.fields.insoleLengthCm' | translate }}</label>
+                  <input pInputText id="insole_length_cm" formControlName="insole_length_cm" [placeholder]="'admin.products.form.placeholders.insoleLengthCm' | translate" class="w-full" />
+                </div>
+              }
+              @case ('bags') {
+                <div class="field">
+                  <label for="width_cm">{{ 'admin.products.form.fields.widthCm' | translate }}</label>
+                  <input pInputText id="width_cm" formControlName="width_cm" [placeholder]="'admin.products.form.placeholders.widthCm' | translate" class="w-full" />
+                </div>
+                <div class="field">
+                  <label for="height_cm">{{ 'admin.products.form.fields.heightCm' | translate }}</label>
+                  <input pInputText id="height_cm" formControlName="height_cm" [placeholder]="'admin.products.form.placeholders.heightCm' | translate" class="w-full" />
+                </div>
+                <div class="field">
+                  <label for="depth_cm">{{ 'admin.products.form.fields.depthCm' | translate }}</label>
+                  <input pInputText id="depth_cm" formControlName="depth_cm" [placeholder]="'admin.products.form.placeholders.depthCm' | translate" class="w-full" />
+                </div>
+                <div class="field">
+                  <label for="handle_type">{{ 'product.handleType' | translate }}</label>
+                  <p-select
+                    id="handle_type"
+                    formControlName="handle_type"
+                    [options]="handleTypes"
+                    optionLabel="label"
+                    optionValue="value"
+                    [placeholder]="'admin.products.form.placeholders.selectHandle' | translate"
+                    styleClass="w-full"
+                  />
+                </div>
+                <div class="field">
+                  <label for="bag_size_label">{{ 'admin.products.form.fields.bagSizeLabel' | translate }}</label>
+                  <input pInputText id="bag_size_label" formControlName="bag_size_label" [placeholder]="'admin.products.form.placeholders.bagSizeLabel' | translate" class="w-full" />
+                </div>
+              }
+              @case ('jewelry') {
+                <div class="field">
+                  <label for="metal">{{ 'product.metal' | translate }}</label>
+                  <input pInputText id="metal" formControlName="metal" [placeholder]="'admin.products.form.placeholders.metal' | translate" class="w-full" />
+                </div>
+                <div class="field">
+                  <label for="stone">{{ 'product.stone' | translate }}</label>
+                  <input pInputText id="stone" formControlName="stone" [placeholder]="'admin.products.form.placeholders.stone' | translate" class="w-full" />
+                </div>
+                <div class="field">
+                  <label for="clasp_type">{{ 'product.claspType' | translate }}</label>
+                  <input pInputText id="clasp_type" formControlName="clasp_type" [placeholder]="'admin.products.form.placeholders.claspType' | translate" class="w-full" />
+                </div>
+              }
+              @default {
+                <p class="no-extra-fields">{{ 'admin.products.form.typeDetails.noneForAccessories' | translate }}</p>
+              }
+            }
+
+          </div>
+        </section>
+        <p-divider />
+      }
+
+      <!-- SECTION: Tags -->
+      <section class="form-section">
+        <h3 class="section-title">{{ 'form.sections.tags' | translate }}</h3>
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="style_tag_ids">{{ 'product.tags.style' | translate }}</label>
+            <p-multiSelect
+              id="style_tag_ids"
+              formControlName="style_tag_ids"
+              [options]="styleTags"
+              optionLabel="name"
+              optionValue="id"
+              [placeholder]="'admin.products.form.placeholders.selectStyles' | translate"
+              [showClear]="true"
+              styleClass="w-full"
+            />
+          </div>
+
+          <div class="field">
+            <label for="vibe_tag_ids">{{ 'product.tags.vibe' | translate }}</label>
+            <p-multiSelect
+              id="vibe_tag_ids"
+              formControlName="vibe_tag_ids"
+              [options]="vibeTags"
+              optionLabel="name"
+              optionValue="id"
+              [placeholder]="'admin.products.form.placeholders.selectVibes' | translate"
+              [showClear]="true"
+              styleClass="w-full"
+            />
+          </div>
+
+          <div class="field">
+            <label for="season_ids">{{ 'product.tags.season' | translate }}</label>
+            <p-multiSelect
+              id="season_ids"
+              formControlName="season_ids"
+              [options]="seasons"
+              optionLabel="name"
+              optionValue="id"
+              [placeholder]="'admin.products.form.placeholders.selectSeasons' | translate"
+              [showClear]="true"
+              styleClass="w-full"
+            />
+          </div>
+
+        </div>
+      </section>
+
+    </form>
+  }
+
+  <ng-template pTemplate="footer">
+    <div class="modal-footer">
+      @if (staleVersionError()) {
+        <div class="stale-error">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ 'admin.products.staleVersion' | translate }}
+        </div>
+      }
+      <div class="footer-actions">
+        <p-button
+          [label]="'common.cancel' | translate"
+          severity="secondary"
+          (onClick)="onCancel()"
+          [disabled]="saving()"
+        />
+        @if (productId()) {
+          <p-button
+            [label]="'admin.products.list.actions.images' | translate"
+            icon="pi pi-images"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="onManageImages()"
+            [disabled]="saving()"
+          />
+        }
+        <p-button
+          [label]="productId()
+            ? ('admin.products.form.actions.saveChanges' | translate)
+            : ('admin.products.form.actions.createProduct' | translate)"
+          icon="pi pi-check"
+          (onClick)="onSubmit()"
+          [loading]="saving()"
+          [disabled]="form.invalid || saving()"
+        />
+      </div>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<p-toast />
+
+<app-brand-form-modal
+  [visible]="brandModalVisible()"
+  (visibleChange)="onBrandModalVisibleChange($event)"
+  (saved)="onBrandCreated($event)"
+/>

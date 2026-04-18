@@ -1,0 +1,173 @@
+
+    <div class="profile-page">
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="card-header">
+            <h2>{{ 'profile.title' | translate }}</h2>
+          </div>
+        </ng-template>
+
+        <!-- Profile Form -->
+        @if (store.user()) {
+          <form [formGroup]="profileForm" class="profile-form">
+            <div class="form-grid">
+              <div class="field">
+                <label for="name">{{ 'profile.name' | translate }}</label>
+                <input pInputText id="name" formControlName="name" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="surname">{{ 'profile.surname' | translate }}</label>
+                <input pInputText id="surname" formControlName="surname" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="email">{{ 'profile.email' | translate }}</label>
+                <input pInputText id="email" formControlName="email" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="phone_number">{{ 'profile.phone' | translate }}</label>
+                <input pInputText id="phone_number" formControlName="phone_number" class="w-full" />
+              </div>
+            </div>
+
+            <p-divider />
+
+            <div class="readonly-info">
+              <div class="info-item">
+                <span class="info-label">{{ 'profile.role' | translate }}</span>
+                <span class="info-value">{{ store.user()!.role }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">{{ 'profile.status' | translate }}</span>
+                <span class="info-value" [class.active]="store.user()!.is_active" [class.inactive]="!store.user()!.is_active">
+                  {{ store.user()!.is_active ? ('profile.status.active' | translate) : ('profile.status.inactive' | translate) }}
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">{{ 'profile.memberSince' | translate }}</span>
+                <span class="info-value">{{ store.user()!.created_at | date:'dd MMM yyyy' }}</span>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <p-button
+                [label]="'common.save' | translate"
+                icon="pi pi-check"
+                (onClick)="saveProfile()"
+                [loading]="store.loading()"
+                [disabled]="profileForm.invalid || profileForm.pristine"
+              />
+            </div>
+          </form>
+        }
+
+        <p-divider />
+
+        <!-- Addresses Section -->
+        <div class="addresses-section">
+          <div class="section-header">
+            <h3>{{ 'profile.addresses.title' | translate }}</h3>
+            <p-button
+              [label]="'profile.addresses.addAddress' | translate"
+              icon="pi pi-plus"
+              size="small"
+              (onClick)="openAddAddressModal()"
+            />
+          </div>
+
+          @if (store.addresses().length === 0) {
+            <div class="no-addresses">
+              <i class="pi pi-map-marker" style="font-size:1.5rem; display:block; margin-bottom:8px;"></i>
+              {{ 'profile.addresses.noAddresses' | translate }}
+            </div>
+          }
+
+          <div class="address-list">
+            @for (address of store.addresses(); track address.id) {
+              <div class="address-card">
+                <div class="address-details">
+                  <span class="address-line">{{ address.street }} {{ address.building_num }}</span>
+                  @if (address.floor_num !== null) {
+                    <span class="address-detail">{{ 'profile.addresses.fields.floorNum' | translate }}: {{ address.floor_num }}</span>
+                  }
+                  @if (address.apartment_num) {
+                    <span class="address-detail">{{ 'profile.addresses.fields.apartmentNum' | translate }}: {{ address.apartment_num }}</span>
+                  }
+                  <span class="address-detail">{{ 'profile.addresses.fields.postIndex' | translate }}: {{ address.post_index }}</span>
+                </div>
+                <div class="address-actions">
+                  <p-button
+                    [label]="'common.edit' | translate"
+                    icon="pi pi-pencil"
+                    severity="info"
+                    size="small"
+                    (onClick)="openEditAddressModal(address)"
+                  />
+                  <p-button
+                    [label]="'common.delete' | translate"
+                    icon="pi pi-trash"
+                    severity="danger"
+                    size="small"
+                    (onClick)="deleteAddress(address.id)"
+                  />
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Address Modal -->
+    <p-dialog
+      [header]="editingAddress() ? ('profile.addresses.editAddress' | translate) : ('profile.addresses.addAddress' | translate)"
+      [visible]="addressModalVisible()"
+      (visibleChange)="onAddressModalVisibleChange($event)"
+      [modal]="true"
+      [style]="{ width: '450px', maxWidth: '95vw' }"
+      [draggable]="false"
+    >
+      <form [formGroup]="addressForm" class="address-form">
+        <div class="field">
+          <label for="street" class="required-label">{{ 'profile.addresses.fields.street' | translate }}</label>
+          <input pInputText id="street" formControlName="street" class="w-full" />
+          @if (addressForm.get('street')?.invalid && addressForm.get('street')?.touched) {
+            <small class="error-text">{{ 'common.required' | translate }}</small>
+          }
+        </div>
+        <div class="field">
+          <label for="building_num" class="required-label">{{ 'profile.addresses.fields.buildingNum' | translate }}</label>
+          <input pInputText id="building_num" formControlName="building_num" class="w-full" />
+          @if (addressForm.get('building_num')?.invalid && addressForm.get('building_num')?.touched) {
+            <small class="error-text">{{ 'common.required' | translate }}</small>
+          }
+        </div>
+        <div class="field">
+          <label for="floor_num">{{ 'profile.addresses.fields.floorNum' | translate }}</label>
+          <input pInputText id="floor_num" formControlName="floor_num" type="number" class="w-full" />
+        </div>
+        <div class="field">
+          <label for="apartment_num">{{ 'profile.addresses.fields.apartmentNum' | translate }}</label>
+          <input pInputText id="apartment_num" formControlName="apartment_num" class="w-full" />
+        </div>
+        <div class="field">
+          <label for="post_index" class="required-label">{{ 'profile.addresses.fields.postIndex' | translate }}</label>
+          <input pInputText id="post_index" formControlName="post_index" class="w-full" />
+          @if (addressForm.get('post_index')?.invalid && addressForm.get('post_index')?.touched) {
+            <small class="error-text">{{ 'common.required' | translate }}</small>
+          }
+        </div>
+      </form>
+
+      <ng-template pTemplate="footer">
+        <p-button [label]="'common.cancel' | translate" severity="secondary" (onClick)="closeAddressModal()" />
+        <p-button
+          [label]="'common.save' | translate"
+          icon="pi pi-check"
+          (onClick)="saveAddress()"
+          [loading]="store.addressesLoading()"
+          [disabled]="addressForm.invalid || store.addressesLoading()"
+        />
+      </ng-template>
+    </p-dialog>
+
+    <p-toast />

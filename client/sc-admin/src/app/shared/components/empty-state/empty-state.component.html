@@ -1,0 +1,11 @@
+<div class="empty-state" role="status">
+  <i class="empty-state__icon" [class]="icon()" aria-hidden="true"></i>
+  <h3 class="empty-state__title">
+    {{ titleKey() | translate }}
+  </h3>
+  @if (messageKey()) {
+    <p class="empty-state__message">
+      {{ messageKey() | translate }}
+    </p>
+  }
+</div>

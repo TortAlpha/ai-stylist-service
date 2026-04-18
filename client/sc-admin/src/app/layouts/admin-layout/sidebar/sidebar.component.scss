@@ -1,0 +1,48 @@
+.top-nav {
+  position: sticky;
+  top: 64px;
+  z-index: 95;
+  padding: 0.6rem 1.25rem 0.35rem;
+}
+
+:host ::ng-deep .top-menubar {
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-elevated-shadow);
+  background: color-mix(in srgb, var(--app-panel-bg) 90%, transparent);
+  backdrop-filter: blur(10px);
+  padding: 0.35rem;
+}
+
+:host ::ng-deep .top-menubar .p-menubar-root-list {
+  gap: 0.25rem;
+}
+
+:host ::ng-deep .top-menubar .p-menubar-item-link {
+  border-radius: 9px;
+  padding: 0.5rem 0.72rem;
+  color: var(--p-text-secondary-color);
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+
+:host ::ng-deep .top-menubar .p-menubar-item-link:hover {
+  background: var(--app-hover-bg);
+  color: var(--p-text-color);
+}
+
+:host ::ng-deep .top-menubar .p-menubar-item-link.p-menubar-item-link-active {
+  color: var(--p-text-color);
+  background: color-mix(in srgb, var(--p-primary-color) 17%, transparent);
+  border: 1px solid color-mix(in srgb, var(--p-primary-color) 34%, transparent);
+}
+
+@media (max-width: 768px) {
+  .top-nav {
+    top: 62px;
+    padding: 0.45rem 0.8rem 0.2rem;
+  }
+
+  :host ::ng-deep .top-menubar {
+    padding: 0.3rem;
+  }
+}
