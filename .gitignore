@@ -1,5 +1,33 @@
-
-*.idea
-.env
+# IDE / OS
+.idea/
+.vscode/
+*.iml
 .DS_Store
-.vscode
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs / temp
+*.log
+*.pid
+*.seed
+
+# Node / frontend artifacts
+**/node_modules/
+**/dist/
+**/build/
+**/.angular/
+**/coverage/
+**/playwright-report/
+**/test-results/
+
+# Rust / cargo artifacts
+**/target/
+
+# Local assistant artifacts
+.claude/
+
+# Local-only client workspace (not part of this repo)
+/client/sc-client/
