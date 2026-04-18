@@ -29,3 +29,7 @@ optional = true
 mockall = "0.14"
 actix-web = "4"
 actix-rt = "2"
+
+[[test]]
+name = "user_service_test"
+required-features = ["test-mocks"]

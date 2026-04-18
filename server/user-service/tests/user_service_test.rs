@@ -61,7 +61,6 @@ mod tests {
             email: "john@example.com".into(),
             password: "password123".into(),
             phone_number: None,
-            role: None,
         };
 
         let result = svc.register(&req).await.unwrap();

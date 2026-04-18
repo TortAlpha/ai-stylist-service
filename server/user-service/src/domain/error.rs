@@ -29,7 +29,10 @@ struct ErrorBody {
 
 impl ResponseError for ServiceError {
     fn error_response(&self) -> HttpResponse {
-        let body = ErrorBody { success: false, error: self.to_string() };
+        let body = ErrorBody {
+            success: false,
+            error: self.to_string(),
+        };
         match self {
             Self::NotFound(_) => HttpResponse::NotFound().json(body),
             Self::Conflict(_) => HttpResponse::Conflict().json(body),
@@ -43,13 +46,11 @@ impl From<sqlx::Error> for ServiceError {
     fn from(err: sqlx::Error) -> Self {
         match &err {
             sqlx::Error::RowNotFound => Self::NotFound("resource not found".into()),
-            sqlx::Error::Database(db_err) => {
-                match db_err.code().as_deref() {
-                    Some("23505") => Self::Conflict(db_err.message().to_string()),
-                    Some("23503") => Self::BadRequest(db_err.message().to_string()),
-                    _ => Self::Internal(db_err.message().to_string()),
-                }
-            }
+            sqlx::Error::Database(db_err) => match db_err.code().as_deref() {
+                Some("23505") => Self::Conflict(db_err.message().to_string()),
+                Some("23503") => Self::BadRequest(db_err.message().to_string()),
+                _ => Self::Internal(db_err.message().to_string()),
+            },
             _ => Self::Internal(err.to_string()),
         }
     }

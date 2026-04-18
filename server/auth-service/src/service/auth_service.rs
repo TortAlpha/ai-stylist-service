@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use rand::RngCore;
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use crate::auth::jwt::JwtManager;
@@ -45,6 +46,7 @@ impl AuthService {
     }
 
     pub async fn login(&self, req: &LoginRequest) -> Result<AuthResponse, ServiceError> {
+        debug!(email = %req.email, "service:auth login");
         let user = self
             .user_client
             .find_by_email(&req.email)
@@ -52,9 +54,8 @@ impl AuthService {
             .ok_or_else(|| ServiceError::Unauthorized("Invalid email or password".into()))?;
 
         if !user.is_active {
-            return Err(ServiceError::Unauthorized(
-                "Account is deactivated".into(),
-            ));
+            warn!(user_id = %user.id, email = %req.email, "service:auth login for deactivated account");
+            return Err(ServiceError::Unauthorized("Account is deactivated".into()));
         }
 
         Self::verify_password(&req.password, &user.password)?;
@@ -68,6 +69,7 @@ impl AuthService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Failed to create session: {e}")))?;
 
+        info!(user_id = %user.id, role = %user.role, "service:auth login succeeded");
         Ok(AuthResponse {
             access_token,
             refresh_token,
@@ -75,6 +77,7 @@ impl AuthService {
     }
 
     pub async fn refresh(&self, req: &RefreshRequest) -> Result<AuthResponse, ServiceError> {
+        debug!("service:auth refresh");
         let session = self
             .session_repo
             .find_by_refresh_token(&req.refresh_token)
@@ -92,6 +95,7 @@ impl AuthService {
             .await
             .map_err(|e| ServiceError::Internal(e.to_string()))?;
 
+        info!(user_id = %session.user_id, role = %session.role, "service:auth refresh succeeded");
         Ok(AuthResponse {
             access_token: new_access,
             refresh_token: new_refresh,
@@ -99,22 +103,30 @@ impl AuthService {
     }
 
     pub async fn logout(&self, refresh_token: &str) -> Result<(), ServiceError> {
+        debug!("service:auth logout");
         self.session_repo
             .delete_by_refresh_token(refresh_token)
             .await
             .map_err(|e| ServiceError::Internal(e.to_string()))?;
+        info!("service:auth logout succeeded");
         Ok(())
     }
 
     pub async fn logout_all(&self, user_id: Uuid) -> Result<u64, ServiceError> {
-        self.session_repo
+        debug!(%user_id, "service:auth logout_all");
+        let deleted = self
+            .session_repo
             .delete_all_by_user(user_id)
             .await
-            .map_err(|e| ServiceError::Internal(e.to_string()))
+            .map_err(|e| ServiceError::Internal(e.to_string()))?;
+        info!(%user_id, deleted_sessions = deleted, "service:auth logout_all succeeded");
+        Ok(deleted)
     }
 
     pub async fn validate(&self, req: &ValidateRequest) -> Result<ValidateResponse, ServiceError> {
+        debug!("service:auth validate");
         let claims = self.jwt_manager.decode_access_token(&req.access_token)?;
+        info!(user_id = %claims.sub, role = %claims.role, "service:auth validate succeeded");
         Ok(ValidateResponse {
             user_id: claims.sub,
             role: claims.role,

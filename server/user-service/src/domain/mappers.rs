@@ -1,6 +1,6 @@
-use crate::domain::user::User;
 use crate::domain::address::Address;
-use crate::domain::response_dto::{UserResponse, UserAuthResponse, AddressResponse};
+use crate::domain::response_dto::{AddressResponse, UserAuthResponse, UserResponse};
+use crate::domain::user::User;
 
 pub fn user_to_response(u: &User) -> UserResponse {
     UserResponse {
