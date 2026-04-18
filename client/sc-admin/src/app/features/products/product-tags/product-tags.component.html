@@ -1,0 +1,54 @@
+    <div class="product-tags-page">
+      <div class="header">
+        <h2>Assign Tags</h2>
+        @if (product) {
+          <span class="product-info">{{ product.name }} ({{ product.sku }})</span>
+        }
+        <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" (onClick)="router.navigate(['/admin/products'])" />
+      </div>
+
+      <p-card header="Style Tags" styleClass="mb-3">
+        <div class="tag-row">
+          <p-multiSelect
+            [options]="tagStore.styles()"
+            [(ngModel)]="selectedStyleIds"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select styles"
+            styleClass="w-full" />
+        </div>
+      </p-card>
+
+      <p-card header="Vibe Tags" styleClass="mb-3">
+        <div class="tag-row">
+          <p-multiSelect
+            [options]="tagStore.vibes()"
+            [(ngModel)]="selectedVibeIds"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select vibes"
+            styleClass="w-full" />
+        </div>
+      </p-card>
+
+      <p-card header="Seasons" styleClass="mb-3">
+        <div class="tag-row">
+          <p-multiSelect
+            [options]="tagStore.seasons()"
+            [(ngModel)]="selectedSeasonIds"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select seasons"
+            styleClass="w-full" />
+        </div>
+      </p-card>
+
+      <p-button label="Save All Tags" icon="pi pi-check" (onClick)="saveAll()" [loading]="saving" size="large" />
+
+      @if (message) {
+        <div class="success-message">{{ message }}</div>
+      }
+      @if (error) {
+        <div class="error-message">{{ error }}</div>
+      }
+    </div>

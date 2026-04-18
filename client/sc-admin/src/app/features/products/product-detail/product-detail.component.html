@@ -1,0 +1,413 @@
+<div class="product-detail-page">
+  @if (loading()) {
+    <div class="p-section muted">{{ 'admin.products.detail.loading' | translate }}</div>
+  } @else if (product(); as p) {
+    <header class="detail-hero p-section">
+      <div class="hero-main">
+        @if (p.preview_url) {
+          <img class="hero-thumb" [src]="p.preview_url.thumb" [alt]="p.name" />
+        } @else {
+          <div class="hero-thumb hero-thumb--empty" aria-hidden="true">
+            <i class="pi pi-image"></i>
+          </div>
+        }
+
+        <div class="hero-text">
+          <h1 class="page-title">{{ p.name }}</h1>
+          <p class="hero-sku">
+            <span class="sku-label">{{ 'product.sku' | translate }}:</span>
+            <span class="mono">{{ p.sku }}</span>
+          </p>
+
+          <div class="hero-badges">
+            <app-status-badge [status]="p.status" />
+            <span class="condition-badge" [class]="'condition-badge condition-badge--' + p.details.condition">
+              {{ translateKey('conditions.' + p.details.condition, p.details.condition) }}
+            </span>
+            @if (p.brand.tier) {
+              <span class="tier-badge" [class]="'tier-badge tier-badge--' + p.brand.tier">
+                {{ translateKey('brandTiers.' + p.brand.tier, p.brand.tier) }}
+              </span>
+            }
+            <span class="info-chip">{{ translateKey('productTypes.' + p.product_type, p.product_type) }}</span>
+            <span class="info-chip">{{ translateKey('genders.' + p.category.gender, p.category.gender) }}</span>
+            @if (p.details.is_vintage) {
+              <span class="info-chip info-chip--accent">{{ 'product.vintage' | translate }}</span>
+            }
+            @if (p.details.is_collab) {
+              <span class="info-chip info-chip--accent">
+                {{ 'product.collab' | translate }}{{ p.details.collab_name ? ': ' + p.details.collab_name : '' }}
+              </span>
+            }
+            @if (p.details.is_limited_edition) {
+              <span class="info-chip info-chip--accent">{{ 'product.limitedEdition' | translate }}</span>
+            }
+          </div>
+
+          <div class="quick-status">
+            <label class="quick-status-label" for="detail-status-select">
+              {{ 'product.status' | translate }}
+            </label>
+            <div class="quick-status-controls">
+              <p-select
+                inputId="detail-status-select"
+                [options]="statusOptions"
+                [(ngModel)]="selectedStatus"
+                optionLabel="label"
+                optionValue="value"
+                [placeholder]="'admin.products.form.fields.selectStatus' | translate"
+                [disabled]="statusSaving()"
+                [style]="{ minWidth: '220px' }"
+              />
+              <p-button
+                [label]="'admin.products.detail.updateStatus' | translate"
+                icon="pi pi-check"
+                severity="secondary"
+                size="small"
+                [loading]="statusSaving()"
+                [disabled]="!canUpdateStatus"
+                (onClick)="updateStatus()"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <p-button
+          [label]="'admin.products.detail.backToList' | translate"
+          icon="pi pi-arrow-left"
+          [raised]="true"
+          severity="secondary"
+          size="small"
+          (onClick)="router.navigate(['/admin/products'])"
+        />
+        <p-button
+          [label]="'common.edit' | translate"
+          icon="pi pi-pencil"
+          [raised]="true"
+          severity="info"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id, 'edit'])"
+        />
+        <p-button
+          [label]="'admin.products.actions.listings' | translate"
+          icon="pi pi-list"
+          [raised]="true"
+          severity="secondary"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id, 'listings'])"
+        />
+        <p-button
+          [label]="'admin.products.actions.viewHistory' | translate"
+          icon="pi pi-history"
+          [raised]="true"
+          severity="secondary"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id, 'history'])"
+        />
+        <p-button
+          [label]="'admin.products.list.actions.images' | translate"
+          icon="pi pi-images"
+          [raised]="true"
+          severity="help"
+          size="small"
+          (onClick)="router.navigate(['/admin/products', p.id, 'images'])"
+        />
+        <p-button
+          [label]="'common.delete' | translate"
+          icon="pi pi-trash"
+          [raised]="true"
+          severity="danger"
+          size="small"
+          (onClick)="confirmDelete()"
+        />
+      </div>
+    </header>
+
+    <section class="p-section images-section">
+      <header class="section-header">
+        <h2 class="section-title">{{ 'admin.products.detail.sections.images' | translate }}</h2>
+        <span class="section-meta">{{ p.image_urls.length }}</span>
+      </header>
+
+      @if (p.image_urls.length > 0) {
+        <div class="image-grid">
+          @for (url of p.image_urls; track url.full) {
+            <div class="image-item" [class.is-preview]="url.full === p.preview_url?.full">
+              <img [src]="url.medium" [alt]="p.name" />
+              @if (url.full === p.preview_url?.full) {
+                <span class="preview-badge">{{ 'common.preview' | translate }}</span>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="muted">{{ 'admin.products.detail.noImages' | translate }}</p>
+      }
+    </section>
+
+    <div class="info-grid">
+      <section class="p-section">
+        <header class="section-header">
+          <h2 class="section-title">{{ 'admin.products.detail.sections.basicInfo' | translate }}</h2>
+        </header>
+        <dl class="kv-list">
+          <div>
+            <dt>{{ 'product.brand' | translate }}</dt>
+            <dd>{{ p.brand.name }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.category' | translate }}</dt>
+            <dd>
+              @if (p.category.parent_category) {
+                <span class="muted">{{ p.category.parent_category }}</span> /
+              }
+              {{ p.category.name }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ 'product.type' | translate }}</dt>
+            <dd>{{ translateKey('productTypes.' + p.product_type, p.product_type) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.gender' | translate }}</dt>
+            <dd>{{ translateKey('genders.' + p.category.gender, p.category.gender) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.price.original' | translate }}</dt>
+            <dd>
+              @if (p.purchase_price) {
+                <strong>{{ p.purchase_price }}</strong> <span class="muted">{{ p.currency }}</span>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>{{ 'admin.products.detail.fields.purchaseLocation' | translate }}</dt>
+            <dd>{{ p.purchase_location ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'admin.products.detail.fields.version' | translate }}</dt>
+            <dd class="mono">v{{ p.version }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'admin.products.detail.fields.updatedAt' | translate }}</dt>
+            <dd>{{ p.updated_at | date: 'dd MMM yyyy, HH:mm' }}</dd>
+          </div>
+          @if (p.ai_notes) {
+            <div class="kv-full">
+              <dt>{{ 'product.notes' | translate }}</dt>
+              <dd>{{ p.ai_notes }}</dd>
+            </div>
+          }
+        </dl>
+      </section>
+
+      <section class="p-section">
+        <header class="section-header">
+          <h2 class="section-title">{{ 'admin.products.detail.sections.details' | translate }}</h2>
+        </header>
+        <dl class="kv-list">
+          <div>
+            <dt>{{ 'product.condition' | translate }}</dt>
+            <dd>{{ translateKey('conditions.' + p.details.condition, p.details.condition) }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.material' | translate }}</dt>
+            <dd>{{ p.details.material ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.color' | translate }}</dt>
+            <dd>{{ p.details.color ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.year' | translate }}</dt>
+            <dd>{{ p.details.year_of_release ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.vintage' | translate }}</dt>
+            <dd>{{ (p.details.is_vintage ? 'common.yes' : 'common.no') | translate }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.collab' | translate }}</dt>
+            <dd>
+              @if (p.details.is_collab) {
+                {{ p.details.collab_name ?? ('common.yes' | translate) }}
+              } @else {
+                {{ 'common.no' | translate }}
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>{{ 'product.limitedEdition' | translate }}</dt>
+            <dd>{{ (p.details.is_limited_edition ? 'common.yes' : 'common.no') | translate }}</dd>
+          </div>
+          @if (p.details.special_notes) {
+            <div class="kv-full">
+              <dt>{{ 'product.notes' | translate }}</dt>
+              <dd>{{ p.details.special_notes }}</dd>
+            </div>
+          }
+        </dl>
+      </section>
+
+      <section class="p-section">
+        <header class="section-header">
+          <h2 class="section-title">{{ 'admin.products.detail.sections.sizeAndType' | translate }}</h2>
+        </header>
+        <dl class="kv-list">
+          <div>
+            <dt>{{ 'admin.products.detail.fields.sizeGroup' | translate }}</dt>
+            <dd>{{ p.size.size_group }}</dd>
+          </div>
+          <div>
+            <dt>{{ 'product.size' | translate }}</dt>
+            <dd>{{ p.size.size_label ?? p.size.size_value ?? '—' }}</dd>
+          </div>
+          @if (p.size.size_value2) {
+            <div>
+              <dt>{{ 'admin.products.form.fields.sizeValue2' | translate }}</dt>
+              <dd>{{ p.size.size_value2 }}</dd>
+            </div>
+          }
+          @if (p.size.size_system) {
+            <div>
+              <dt>{{ 'product.sizeSystem' | translate }}</dt>
+              <dd>{{ translateKey('sizeSystems.' + p.size.size_system, p.size.size_system) }}</dd>
+            </div>
+          }
+          @if (p.size.measurement_cm) {
+            <div>
+              <dt>{{ 'admin.products.form.fields.measurementCm' | translate }}</dt>
+              <dd>{{ p.size.measurement_cm }}</dd>
+            </div>
+          }
+
+          @switch (p.type_details.type) {
+            @case ('clothing') {
+              <div>
+                <dt>{{ 'product.fit' | translate }}</dt>
+                <dd>
+                  @if (typeField(p.type_details, 'fit'); as fit) {
+                    {{ translateKey('fitTypes.' + fit, fit) }}
+                  } @else {
+                    —
+                  }
+                </dd>
+              </div>
+            }
+            @case ('footwear') {
+              <div>
+                <dt>{{ 'admin.products.form.fields.shoeWidth' | translate }}</dt>
+                <dd>
+                  @if (typeField(p.type_details, 'shoe_width'); as sw) {
+                    {{ translateKey('admin.products.form.options.shoeWidths.' + sw, sw) }}
+                  } @else {
+                    —
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>{{ 'admin.products.form.fields.insoleLengthCm' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'insole_length_cm') ?? '—' }}</dd>
+              </div>
+            }
+            @case ('bags') {
+              <div>
+                <dt>{{ 'admin.products.form.fields.widthCm' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'width_cm') ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'admin.products.form.fields.heightCm' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'height_cm') ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'admin.products.form.fields.depthCm' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'depth_cm') ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'product.handleType' | translate }}</dt>
+                <dd>
+                  @if (typeField(p.type_details, 'handle_type'); as h) {
+                    {{ translateKey('handleTypes.' + h, h) }}
+                  } @else {
+                    —
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>{{ 'admin.products.form.fields.bagSizeLabel' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'bag_size_label') ?? '—' }}</dd>
+              </div>
+            }
+            @case ('jewelry') {
+              <div>
+                <dt>{{ 'product.metal' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'metal') ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'product.stone' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'stone') ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>{{ 'product.claspType' | translate }}</dt>
+                <dd>{{ typeField(p.type_details, 'clasp_type') ?? '—' }}</dd>
+              </div>
+            }
+          }
+        </dl>
+      </section>
+
+      <section class="p-section tags-section">
+        <header class="section-header">
+          <h2 class="section-title">{{ 'admin.products.detail.sections.tags' | translate }}</h2>
+        </header>
+        <div class="tag-groups">
+          <div class="tag-group">
+            <span class="tag-group-title">{{ 'product.tags.style' | translate }}</span>
+            @if (p.tags.styles.length) {
+              <div class="tag-chips">
+                @for (name of p.tags.styles; track name) {
+                  <span class="tag-chip">{{ name }}</span>
+                }
+              </div>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </div>
+          <div class="tag-group">
+            <span class="tag-group-title">{{ 'product.tags.vibe' | translate }}</span>
+            @if (p.tags.vibes.length) {
+              <div class="tag-chips">
+                @for (name of p.tags.vibes; track name) {
+                  <span class="tag-chip">{{ name }}</span>
+                }
+              </div>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </div>
+          <div class="tag-group">
+            <span class="tag-group-title">{{ 'product.tags.season' | translate }}</span>
+            @if (p.tags.seasons.length) {
+              <div class="tag-chips">
+                @for (name of p.tags.seasons; track name) {
+                  <span class="tag-chip">{{ name }}</span>
+                }
+              </div>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </div>
+        </div>
+      </section>
+    </div>
+  } @else {
+    <div class="p-section muted">{{ 'admin.products.detail.notFound' | translate }}</div>
+  }
+
+  <p-confirmDialog />
+  <p-toast />
+</div>

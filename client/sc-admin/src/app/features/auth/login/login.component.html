@@ -1,0 +1,35 @@
+    <div class="login-page">
+      <div class="login-card">
+        <h2>{{ 'admin.panel' | translate }}</h2>
+        <p class="subtitle">{{ 'auth.login.subtitle' | translate }}</p>
+
+        @if (authStore.error()) {
+          <div class="error-banner">{{ authStore.error() }}</div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+          <div class="field">
+            <label for="email">{{ 'auth.login.email' | translate }}</label>
+            <input id="email" formControlName="email" type="email" [placeholder]="'auth.login.emailPlaceholder' | translate" autocomplete="email" />
+            @if (form.get('email')?.touched && form.get('email')?.hasError('required')) {
+              <small class="error">{{ 'auth.validation.emailRequired' | translate }}</small>
+            }
+            @if (form.get('email')?.touched && form.get('email')?.hasError('email')) {
+              <small class="error">{{ 'auth.validation.emailInvalid' | translate }}</small>
+            }
+          </div>
+
+          <div class="field">
+            <label for="password">{{ 'auth.login.password' | translate }}</label>
+            <input id="password" formControlName="password" type="password" [placeholder]="'auth.login.passwordPlaceholder' | translate" autocomplete="current-password" />
+            @if (form.get('password')?.touched && form.get('password')?.hasError('required')) {
+              <small class="error">{{ 'auth.validation.passwordRequired' | translate }}</small>
+            }
+          </div>
+
+          <button type="submit" [disabled]="form.invalid || authStore.loading()">
+            {{ authStore.loading() ? ('auth.login.loading' | translate) : ('auth.login.submit' | translate) }}
+          </button>
+        </form>
+      </div>
+    </div>

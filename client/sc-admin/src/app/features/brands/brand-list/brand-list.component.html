@@ -1,0 +1,241 @@
+    <div class="brand-list-page">
+      <!-- Top bar -->
+      <div class="top-bar">
+        <div class="top-bar-left">
+          <h2 class="page-title">{{ 'admin.panel' | translate }} — {{ 'admin.brands.title' | translate }}</h2>
+        </div>
+        <div class="top-bar-right">
+          <p-button
+            [label]="viewToggleLabel"
+            [icon]="viewToggleIcon"
+            severity="secondary"
+            size="small"
+            (onClick)="toggleViewMode()"
+          />
+          <p-button
+            [label]="'admin.brands.addBrand' | translate"
+            icon="pi pi-plus"
+            size="small"
+            (onClick)="goToCreate()"
+          />
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-field search-field">
+          <label>{{ 'common.search' | translate }}</label>
+          <input
+            pInputText
+            [(ngModel)]="filterSearch"
+            (ngModelChange)="onSearchInput()"
+            [placeholder]="'admin.brands.list.searchPlaceholder' | translate"
+            class="w-full"
+          />
+        </div>
+
+        <div class="filter-actions">
+          <div class="filter-count">{{ 'admin.products.list.activeFilters' | translate: { count: activeFilterCount } }}</div>
+          @if (activeFilterCount > 0) {
+            <p-button
+              [label]="'admin.products.list.clearFilters' | translate"
+              severity="secondary"
+              icon="pi pi-times"
+              (onClick)="clearFilters()"
+            />
+          }
+        </div>
+      </div>
+
+      @if (viewMode === 'table') {
+        <!-- Desktop table -->
+        <div class="table-wrapper desktop-only">
+          <p-table
+            [value]="store.brands()"
+            [loading]="store.loading()"
+            [paginator]="true"
+            [rows]="store.perPage()"
+            [totalRecords]="store.total()"
+            [lazy]="true"
+            (onLazyLoad)="onPageChange($event)"
+            [rowsPerPageOptions]="[10, 20, 50]"
+            styleClass="p-datatable-sm p-datatable-gridlines"
+            [scrollable]="true"
+          >
+            <ng-template pTemplate="header">
+              <tr>
+                <th style="width:80px">{{ 'admin.brands.columns.id' | translate }}</th>
+                <th>{{ 'admin.brands.columns.name' | translate }}</th>
+                <th style="width:160px">{{ 'admin.brands.columns.code' | translate }}</th>
+                <th style="width:140px">{{ 'admin.brands.columns.tier' | translate }}</th>
+                <th style="width:160px">{{ 'admin.brands.columns.country' | translate }}</th>
+                <th style="width:140px">{{ 'admin.brands.columns.createdAt' | translate }}</th>
+                <th style="width:200px">{{ 'common.actions' | translate }}</th>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-brand>
+              <tr>
+                <td class="id-cell">{{ brand.id }}</td>
+                <td class="name-cell">
+                  <button type="button" class="name-link" (click)="goToEdit(brand.id)">{{ brand.name }}</button>
+                </td>
+                <td class="code-cell">{{ brand.code }}</td>
+                <td>
+                  <p-tag [value]="getTierLabel(brand.tier)" [severity]="getTierSeverity(brand.tier)" />
+                </td>
+                <td>{{ brand.country ?? '—' }}</td>
+                <td>{{ formatDate(brand.created_at) }}</td>
+                <td>
+                  <div class="action-buttons">
+                    <p-button
+                      [label]="'common.edit' | translate"
+                      icon="pi pi-pencil"
+                      size="small"
+                      severity="info"
+                      (onClick)="goToEdit(brand.id)"
+                    />
+                    <p-button
+                      [label]="'common.delete' | translate"
+                      icon="pi pi-trash"
+                      size="small"
+                      severity="danger"
+                      (onClick)="confirmDelete(brand)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="7" class="empty-message">
+                  <i class="pi pi-inbox" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+                  {{ 'admin.brands.list.empty' | translate }}
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+
+        <!-- Mobile card layout -->
+        <div class="mobile-only">
+          @if (store.loading()) {
+            <div class="loading-placeholder">{{ 'common.loading' | translate }}</div>
+          }
+          @for (brand of store.brands(); track brand.id) {
+            <div class="brand-card">
+              <div class="brand-card-header">
+                <div class="card-info">
+                  <button type="button" class="card-name card-name-link" (click)="goToEdit(brand.id)">{{ brand.name }}</button>
+                  <div class="card-code">{{ brand.code }}</div>
+                  <p-tag [value]="getTierLabel(brand.tier)" [severity]="getTierSeverity(brand.tier)" />
+                </div>
+              </div>
+              <div class="card-details">
+                <span>{{ brand.country ?? '—' }}</span>
+                <span>{{ formatDate(brand.created_at) }}</span>
+              </div>
+              <div class="card-actions">
+                <p-button
+                  [label]="'common.edit' | translate"
+                  icon="pi pi-pencil"
+                  size="small"
+                  severity="info"
+                  (onClick)="goToEdit(brand.id)"
+                />
+                <p-button
+                  [label]="'common.delete' | translate"
+                  icon="pi pi-trash"
+                  size="small"
+                  severity="danger"
+                  (onClick)="confirmDelete(brand)"
+                />
+              </div>
+            </div>
+          }
+          @if (!store.loading() && store.brands().length === 0) {
+            <div class="empty-message">{{ 'admin.brands.list.empty' | translate }}</div>
+          }
+
+          @if (store.totalPages() > 1) {
+            <div class="mobile-pagination">
+              <p-button
+                icon="pi pi-chevron-left"
+                [disabled]="store.page() <= 1"
+                severity="secondary"
+                (onClick)="goToPage(store.page() - 1)"
+              />
+              <span>{{ 'common.page' | translate }} {{ store.page() }} {{ 'common.of' | translate }} {{ store.totalPages() }}</span>
+              <p-button
+                icon="pi pi-chevron-right"
+                [disabled]="store.page() >= store.totalPages()"
+                severity="secondary"
+                (onClick)="goToPage(store.page() + 1)"
+              />
+            </div>
+          }
+        </div>
+      }
+
+      @if (viewMode === 'cards') {
+        <div class="cards-view">
+          @if (store.loading()) {
+            <div class="loading-placeholder">{{ 'common.loading' | translate }}</div>
+          } @else if (store.brands().length === 0) {
+            <div class="empty-message">{{ 'admin.brands.list.empty' | translate }}</div>
+          } @else {
+            <div class="brands-grid">
+              @for (brand of store.brands(); track brand.id) {
+                <div class="grid-card">
+                  <button type="button" class="grid-card-main" (click)="goToEdit(brand.id)">
+                    <div class="grid-card-title-row">
+                      <span class="grid-card-name">{{ brand.name }}</span>
+                      <p-tag [value]="getTierLabel(brand.tier)" [severity]="getTierSeverity(brand.tier)" />
+                    </div>
+                    <div class="grid-card-code">{{ brand.code }}</div>
+                    <div class="grid-card-meta">
+                      <span><i class="pi pi-map-marker"></i> {{ brand.country ?? '—' }}</span>
+                      <span><i class="pi pi-calendar"></i> {{ formatDate(brand.created_at) }}</span>
+                    </div>
+                  </button>
+                  <div class="grid-card-actions">
+                    <p-button
+                      [label]="'common.edit' | translate"
+                      icon="pi pi-pencil"
+                      size="small"
+                      severity="info"
+                      (onClick)="goToEdit(brand.id)"
+                    />
+                    <p-button
+                      [label]="'common.delete' | translate"
+                      icon="pi pi-trash"
+                      size="small"
+                      severity="danger"
+                      (onClick)="confirmDelete(brand)"
+                    />
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <app-pagination
+            [page]="store.page()"
+            [perPage]="store.perPage()"
+            [total]="store.total()"
+            (pageChange)="onCardPageChange($event)"
+          />
+        </div>
+      }
+
+      @if (store.error()) {
+        <div class="error-banner">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ store.error() }}
+        </div>
+      }
+    </div>
+
+    <p-confirmDialog />
+    <p-toast />

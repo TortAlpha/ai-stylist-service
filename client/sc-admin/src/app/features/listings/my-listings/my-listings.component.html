@@ -1,0 +1,113 @@
+
+    <div class="my-listings-page">
+      <div class="page-header">
+        <h2 class="page-title">{{ 'admin.listings.title' | translate }}</h2>
+        <p class="page-subtitle">All listings across all products</p>
+      </div>
+
+      <p-table
+        [value]="store.listings()"
+        [loading]="store.loading()"
+        [paginator]="true"
+        [rows]="12"
+        [rowsPerPageOptions]="[12, 24, 48]"
+        styleClass="p-datatable-sm p-datatable-gridlines"
+        [rowHover]="true"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="min-width:200px">{{ 'admin.listings.columns.product' | translate }}</th>
+            <th>{{ 'admin.listings.columns.marketplace' | translate }}</th>
+            <th style="width:110px">{{ 'admin.listings.columns.status' | translate }}</th>
+            <th style="width:130px">{{ 'admin.listings.columns.listingPrice' | translate }}</th>
+            <th style="width:120px">{{ 'admin.listings.columns.soldPrice' | translate }}</th>
+            <th>{{ 'admin.listings.columns.externalUrl' | translate }}</th>
+            <th style="width:150px">{{ 'admin.listings.columns.listedAt' | translate }}</th>
+            <th style="width:160px">{{ 'common.actions' | translate }}</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-listing>
+          <tr>
+            <td>
+              <div class="product-cell">
+                @if (listing.preview_url) {
+                  <img [src]="listing.preview_url.thumb" [alt]="listing.product_name" class="product-thumb" />
+                } @else {
+                  <div class="product-thumb-placeholder">
+                    <i class="pi pi-image"></i>
+                  </div>
+                }
+                <div class="product-info">
+                  <span class="product-name">{{ listing.product_name }}</span>
+                  <span class="product-id">{{ listing.product_id | slice:0:8 }}...</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="marketplace-name">
+                {{ getMarketplaceName(listing.marketplace_id) }}
+              </span>
+            </td>
+            <td>
+              <p-tag
+                [value]="getStatusLabel(listing.status)"
+                [severity]="getStatusSeverity(listing.status)"
+              />
+            </td>
+            <td>
+              @if (listing.listing_price) {
+                <span>{{ listing.listing_price }} {{ listing.currency ?? '' }}</span>
+              } @else {
+                <span class="no-value">—</span>
+              }
+            </td>
+            <td>
+              @if (listing.sold_price) {
+                <span class="sold-price">{{ listing.sold_price }} {{ listing.currency ?? '' }}</span>
+              } @else {
+                <span class="no-value">—</span>
+              }
+            </td>
+            <td>
+              @if (listing.external_url) {
+                <a [href]="listing.external_url" target="_blank" class="external-link">
+                  <i class="pi pi-external-link"></i>
+                  View
+                </a>
+              } @else {
+                <span class="no-value">—</span>
+              }
+            </td>
+            <td class="timestamp-cell">
+              {{ listing.listed_at | date:'dd MMM yyyy' }}
+            </td>
+            <td>
+              <p-button
+                [label]="'admin.listings.productListings' | translate"
+                icon="pi pi-list"
+                size="small"
+                severity="info"
+                (onClick)="goToProductListings(listing.product_id)"
+              />
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="8" class="empty-message">
+              <i class="pi pi-list" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+              {{ 'emptyState.noListings' | translate }}
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      @if (store.error()) {
+        <div class="error-banner">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ store.error() }}
+        </div>
+      }
+    </div>

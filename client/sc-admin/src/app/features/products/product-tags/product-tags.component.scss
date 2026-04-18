@@ -1,0 +1,7 @@
+    .product-tags-page { padding: 24px; max-width: 640px; }
+    .header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .header h2 { margin: 0; }
+    .product-info { color: var(--p-text-secondary-color); }
+    .tag-row { display: flex; gap: 12px; align-items: flex-start; }
+    .success-message { margin-top: 12px; padding: 12px; background: var(--p-green-50); color: var(--p-green-700); border-radius: 6px; }
+    .error-message { margin-top: 12px; padding: 12px; background: var(--p-red-50); color: var(--p-red-700); border-radius: 6px; }

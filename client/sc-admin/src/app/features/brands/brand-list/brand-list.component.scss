@@ -1,0 +1,351 @@
+.brand-list-page {
+  padding: 0.7rem 0.25rem 0;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+}
+
+.page-title {
+  margin: 0;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  background: color-mix(in srgb, var(--app-subtle-bg) 72%, var(--app-panel-bg));
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  padding: 0.85rem;
+  box-shadow: var(--app-elevated-shadow);
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  min-width: 160px;
+  flex: 1;
+}
+
+.search-field {
+  min-width: 260px;
+  flex: 2;
+}
+
+.filter-field label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--p-text-muted-color);
+  text-transform: uppercase;
+  letter-spacing: 0.065em;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.filter-count {
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--p-text-secondary-color);
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.table-wrapper {
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel-bg);
+  box-shadow: var(--app-elevated-shadow);
+  overflow: hidden;
+}
+
+:host ::ng-deep .table-wrapper .p-datatable,
+:host ::ng-deep .table-wrapper .p-paginator {
+  border: 0;
+  border-radius: 0;
+}
+
+:host ::ng-deep .table-wrapper .p-paginator {
+  border-top: 1px solid var(--app-border);
+  background: var(--app-panel-bg);
+}
+
+.id-cell {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--p-text-secondary-color);
+}
+
+.name-cell {
+  font-weight: 550;
+}
+
+.name-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--p-primary-600);
+  cursor: pointer;
+}
+
+.name-link:hover {
+  text-decoration: underline;
+}
+
+.code-cell {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  color: var(--p-text-secondary-color);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 2.2rem;
+  color: var(--p-text-secondary-color);
+}
+
+.error-banner {
+  margin-top: 1rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--p-red-50);
+  color: var(--p-red-700);
+  border-radius: 10px;
+  border: 1px solid var(--p-red-200);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.brand-card {
+  background: var(--app-panel-bg);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  padding: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.brand-card-header {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.card-name {
+  font-weight: 600;
+  font-size: 0.96rem;
+}
+
+.card-name-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: var(--p-primary-600);
+  cursor: pointer;
+}
+
+.card-name-link:hover {
+  text-decoration: underline;
+}
+
+.card-code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--p-text-secondary-color);
+}
+
+.card-details {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.86rem;
+  color: var(--p-text-secondary-color);
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.mobile-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 0.8rem 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.loading-placeholder {
+  padding: 2rem;
+  text-align: center;
+  color: var(--p-text-secondary-color);
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+.cards-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.brands-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.9rem;
+}
+
+.grid-card {
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: var(--app-panel-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.grid-card:hover {
+  border-color: var(--app-border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--app-elevated-shadow);
+}
+
+.grid-card-main {
+  background: transparent;
+  border: 0;
+  padding: 0.9rem;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.grid-card-main:focus-visible {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: 2px;
+}
+
+.grid-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.grid-card-name {
+  font-size: 0.98rem;
+  font-weight: 650;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.grid-card-code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--p-text-secondary-color);
+}
+
+.grid-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--p-text-secondary-color);
+}
+
+.grid-card-meta i {
+  margin-right: 0.3rem;
+  color: var(--p-text-muted-color);
+}
+
+.grid-card-actions {
+  display: flex;
+  gap: 0.45rem;
+  padding: 0 0.9rem 0.9rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .brand-list-page {
+    padding: 0.4rem 0 0;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+
+  .filters-bar {
+    padding: 0.7rem;
+  }
+
+  .filter-field {
+    min-width: 140px;
+  }
+
+  .brands-grid {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+
+  .top-bar-right {
+    width: 100%;
+  }
+}

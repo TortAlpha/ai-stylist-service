@@ -1,0 +1,7 @@
+:host ::ng-deep {
+  .confirm-dialog {
+    .p-dialog-header { font-size: 1.1rem; font-weight: 600; }
+    .p-dialog-content { font-size: 1rem; padding: 1.5rem; }
+    .p-button { min-height: 42px; font-size: 1rem; }
+  }
+}

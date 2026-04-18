@@ -1,0 +1,237 @@
+
+    <div class="product-listings-page">
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb">
+        <span class="crumb" (click)="router.navigate(['/admin/products'])" role="button" tabindex="0">
+          {{ 'admin.panel' | translate }}
+        </span>
+        <i class="pi pi-angle-right"></i>
+        @if (product()) {
+          <span class="crumb active">{{ product()!.name }}</span>
+          <i class="pi pi-angle-right"></i>
+        }
+        <span class="crumb active">{{ 'breadcrumbs.listings' | translate }}</span>
+      </nav>
+
+      <!-- Header -->
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">
+            {{ 'admin.listings.productListings' | translate }}
+            @if (product()) {
+              <span class="product-info"> — {{ product()!.name }} ({{ product()!.sku }})</span>
+            }
+          </h2>
+          <p class="page-subtitle">Manage marketplace listings for this product</p>
+        </div>
+        <div class="header-actions">
+          <p-button
+            [label]="'common.back' | translate"
+            icon="pi pi-arrow-left"
+            severity="secondary"
+            (onClick)="router.navigate(['/admin/products'])"
+          />
+          <p-button
+            [label]="'admin.listings.addListing' | translate"
+            icon="pi pi-plus"
+            size="large"
+            (onClick)="openAddModal()"
+          />
+        </div>
+      </div>
+
+      <!-- Listings Table -->
+      <p-table
+        [value]="store.productListings()"
+        [loading]="store.loading()"
+        styleClass="p-datatable-sm p-datatable-gridlines"
+        [rowHover]="true"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>{{ 'admin.listings.columns.marketplace' | translate }}</th>
+            <th style="width:110px">{{ 'admin.listings.columns.status' | translate }}</th>
+            <th style="width:140px">{{ 'admin.listings.columns.listingPrice' | translate }}</th>
+            <th style="width:120px">{{ 'admin.listings.columns.soldPrice' | translate }}</th>
+            <th>{{ 'admin.listings.columns.externalUrl' | translate }}</th>
+            <th style="width:150px">{{ 'admin.listings.columns.listedAt' | translate }}</th>
+            <th style="width:140px">{{ 'common.actions' | translate }}</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-listing>
+          <tr>
+            <td>
+              <div class="marketplace-cell">
+                <span class="marketplace-name">{{ getMarketplaceName(listing.marketplace_id) }}</span>
+                @if (listing.external_id) {
+                  <span class="external-id">#{{ listing.external_id }}</span>
+                }
+              </div>
+            </td>
+            <td>
+              <p-tag
+                [value]="getStatusLabel(listing.status)"
+                [severity]="getStatusSeverity(listing.status)"
+              />
+            </td>
+            <td>
+              @if (listing.listing_price) {
+                <span>{{ listing.listing_price }} {{ listing.currency ?? '' }}</span>
+              } @else {
+                <span class="no-value">—</span>
+              }
+            </td>
+            <td>
+              @if (listing.sold_price) {
+                <span class="sold-price">{{ listing.sold_price }} {{ listing.currency ?? '' }}</span>
+              } @else {
+                <span class="no-value">—</span>
+              }
+            </td>
+            <td>
+              @if (listing.external_url) {
+                <a [href]="listing.external_url" target="_blank" class="external-link">
+                  <i class="pi pi-external-link"></i>
+                  View listing
+                </a>
+              } @else {
+                <span class="no-value">—</span>
+              }
+            </td>
+            <td class="timestamp-cell">
+              {{ listing.listed_at | date:'dd MMM yyyy' }}
+            </td>
+            <td>
+              <div class="action-buttons">
+                <p-button
+                  [label]="'common.edit' | translate"
+                  icon="pi pi-pencil"
+                  size="small"
+                  severity="info"
+                  (onClick)="openEditModal(listing)"
+                />
+                <p-button
+                  [label]="'common.delete' | translate"
+                  icon="pi pi-trash"
+                  size="small"
+                  severity="danger"
+                  (onClick)="confirmDelete(listing)"
+                />
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" class="empty-message">
+              <i class="pi pi-list" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+              {{ 'emptyState.noListings' | translate }}
+              <br />
+              <small>{{ 'emptyState.noListingsMessage' | translate }}</small>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      @if (store.error()) {
+        <div class="error-banner">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ store.error() }}
+        </div>
+      }
+    </div>
+
+    <!-- Add/Edit Listing Modal -->
+    <p-dialog
+      [header]="editingListing() ? ('admin.listings.editListing' | translate) : ('admin.listings.addListing' | translate)"
+      [visible]="modalVisible()"
+      (visibleChange)="onModalVisibleChange($event)"
+      [modal]="true"
+      [style]="{ width: '500px', maxWidth: '95vw' }"
+      [draggable]="false"
+    >
+      <form [formGroup]="form" class="listing-form">
+
+        <div class="field">
+          <label for="marketplace_id" class="required-label">{{ 'admin.listings.fields.marketplace' | translate }}</label>
+          <p-select
+            id="marketplace_id"
+            formControlName="marketplace_id"
+            [options]="store.marketplaces()"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select Marketplace"
+            styleClass="w-full"
+          />
+          @if (form.get('marketplace_id')?.invalid && form.get('marketplace_id')?.touched) {
+            <small class="error-text">{{ 'common.required' | translate }}</small>
+          }
+        </div>
+
+        <div class="field">
+          <label for="external_id">{{ 'admin.listings.fields.externalId' | translate }}</label>
+          <input pInputText id="external_id" formControlName="external_id" placeholder="e.g. 12345678" class="w-full" />
+        </div>
+
+        <div class="field">
+          <label for="external_url">{{ 'admin.listings.fields.externalUrl' | translate }}</label>
+          <input pInputText id="external_url" formControlName="external_url" placeholder="https://..." class="w-full" />
+        </div>
+
+        <div class="field">
+          <label for="listing_price">{{ 'admin.listings.fields.listingPrice' | translate }}</label>
+          <input pInputText id="listing_price" formControlName="listing_price" placeholder="e.g. 150.00" class="w-full" />
+        </div>
+
+        <div class="field">
+          <label for="currency">{{ 'admin.listings.fields.currency' | translate }}</label>
+          <p-select
+            id="currency"
+            formControlName="currency"
+            [options]="currencies"
+            placeholder="Select Currency"
+            styleClass="w-full"
+          />
+        </div>
+
+        @if (editingListing()) {
+          <div class="field">
+            <label for="status" class="required-label">{{ 'admin.listings.fields.status' | translate }}</label>
+            <p-select
+              id="status"
+              formControlName="status"
+              [options]="statusOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select Status"
+              styleClass="w-full"
+            />
+          </div>
+
+          @if (form.get('status')?.value === 'sold') {
+            <div class="field">
+              <label for="sold_price">{{ 'admin.listings.fields.soldPrice' | translate }}</label>
+              <input pInputText id="sold_price" formControlName="sold_price" placeholder="e.g. 140.00" class="w-full" />
+            </div>
+          }
+        }
+
+      </form>
+
+      <ng-template pTemplate="footer">
+        <p-button [label]="'common.cancel' | translate" severity="secondary" size="large" (onClick)="closeModal()" />
+        <p-button
+          [label]="editingListing() ? ('common.save' | translate) : ('admin.listings.addListing' | translate)"
+          icon="pi pi-check"
+          size="large"
+          (onClick)="onSubmit()"
+          [loading]="saving()"
+          [disabled]="form.invalid || saving()"
+        />
+      </ng-template>
+    </p-dialog>
+
+    <p-confirmDialog />
+    <p-toast />

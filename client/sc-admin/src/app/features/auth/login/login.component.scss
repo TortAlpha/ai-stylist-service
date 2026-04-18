@@ -1,0 +1,97 @@
+    .login-page {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: var(--app-subtle-bg);
+      color: var(--p-text-color);
+    }
+
+    .login-card {
+      background: var(--app-panel-bg);
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      box-shadow: var(--app-elevated-shadow);
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    h2 {
+      margin: 0 0 4px;
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0 0 24px;
+      color: var(--p-text-muted-color);
+      text-align: center;
+    }
+
+    .error-banner {
+      background: var(--p-red-50);
+      color: var(--p-red-700);
+      border: 1px solid var(--p-red-200);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--p-text-color);
+    }
+
+    input {
+      padding: 10px 12px;
+      border: 1px solid var(--app-border);
+      border-radius: 6px;
+      font-size: 1rem;
+      color: var(--p-text-color);
+      background: var(--app-panel-bg);
+      outline: none;
+      transition: border-color 0.2s;
+
+      &:focus {
+        border-color: var(--p-primary-color);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--p-primary-color) 16%, transparent);
+      }
+    }
+
+    .error {
+      color: var(--p-red-600);
+      font-size: 0.8rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: var(--p-primary-color);
+      color: var(--p-primary-contrast-color, #fff);
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+
+      &:hover:not(:disabled) {
+        background: var(--p-primary-hover-color, var(--p-primary-600));
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }

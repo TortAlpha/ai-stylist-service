@@ -1,0 +1,178 @@
+
+    .profile-page {
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    :host ::ng-deep .p-card {
+      width: 100%;
+      max-width: 800px;
+    }
+
+    .card-header {
+      padding: 20px 24px 0;
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .profile-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .required-label::after {
+      content: ' *';
+      color: var(--p-red-500);
+    }
+
+    .error-text {
+      color: var(--p-red-500);
+      font-size: 0.8rem;
+    }
+
+    .readonly-info {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .info-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--p-text-secondary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .info-value.active {
+      color: var(--p-green-600);
+    }
+
+    .info-value.inactive {
+      color: var(--p-red-600);
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    /* Addresses */
+    .addresses-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .section-header h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    .no-addresses {
+      text-align: center;
+      padding: 24px;
+      color: var(--p-text-secondary-color);
+    }
+
+    .address-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .address-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 16px;
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      background: var(--app-subtle-bg);
+    }
+
+    .address-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .address-line {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .address-detail {
+      font-size: 0.85rem;
+      color: var(--p-text-secondary-color);
+    }
+
+    .address-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .address-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 8px 0;
+    }
+
+    @media (max-width: 768px) {
+      .profile-page {
+        padding: 16px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .readonly-info {
+        flex-direction: column;
+        gap: 16px;
+      }
+    }

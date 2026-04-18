@@ -1,0 +1,8 @@
+    <div class="brand-form-page"></div>
+
+    <app-brand-form-modal
+      [visible]="visible()"
+      [brandId]="brandId()"
+      (visibleChange)="onVisibleChange($event)"
+      (saved)="onSaved()"
+    />
