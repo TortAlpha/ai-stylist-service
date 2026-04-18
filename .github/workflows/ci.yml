@@ -14,8 +14,33 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      auth: ${{ steps.filter.outputs.auth }}
+      user: ${{ steps.filter.outputs.user }}
+      product: ${{ steps.filter.outputs.product }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            auth:
+              - 'server/auth-service/**'
+            user:
+              - 'server/user-service/**'
+            product:
+              - 'server/product-service/**'
+            admin:
+              - 'client/sc-admin/**'
+
   backend:
     name: backend (${{ matrix.service }})
+    needs: changes
+    if: ${{ needs.changes.outputs[matrix.filter_key] == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -23,10 +48,13 @@ jobs:
         include:
           - service: auth-service
             test_args: --features test-mocks
+            filter_key: auth
           - service: user-service
             test_args: --features test-mocks
+            filter_key: user
           - service: product-service
             test_args: ""
+            filter_key: product
     defaults:
       run:
         working-directory: server/${{ matrix.service }}
@@ -58,11 +86,15 @@ jobs:
 
   frontend:
     name: frontend (${{ matrix.app }})
+    needs: changes
+    if: ${{ needs.changes.outputs[matrix.filter_key] == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        app: [sc-admin]
+        include:
+          - app: sc-admin
+            filter_key: admin
     defaults:
       run:
         working-directory: client/${{ matrix.app }}
