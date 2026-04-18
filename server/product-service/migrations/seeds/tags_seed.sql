@@ -1,4 +1,3 @@
-
 BEGIN;
 
 INSERT INTO style_tag (name) VALUES

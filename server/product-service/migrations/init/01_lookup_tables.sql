@@ -94,4 +94,5 @@ CREATE TABLE season (
 COMMENT ON TABLE season IS 'Season applicability for products (used in embedding pipeline)';
 
 INSERT INTO season (name) VALUES
-    ('summer'), ('winter'), ('demi-season'), ('all-season');
+    ('summer'), ('winter'), ('demi-season'), ('all-season')
+ON CONFLICT (name) DO NOTHING;

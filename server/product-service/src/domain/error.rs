@@ -73,30 +73,22 @@ impl From<sqlx::Error> for ServiceError {
                 match db_err.code().as_deref() {
                     // 23505 = unique_violation
                     Some("23505") => {
-                        let detail = db_err
-                            .message()
-                            .to_string();
+                        let detail = db_err.message().to_string();
                         Self::Conflict(detail)
                     }
                     // 23503 = foreign_key_violation
                     Some("23503") => {
-                        let detail = db_err
-                            .message()
-                            .to_string();
+                        let detail = db_err.message().to_string();
                         Self::BadRequest(detail)
                     }
                     // 23502 = not_null_violation
                     Some("23502") => {
-                        let detail = db_err
-                            .message()
-                            .to_string();
+                        let detail = db_err.message().to_string();
                         Self::BadRequest(detail)
                     }
                     // 23514 = check_violation
                     Some("23514") => {
-                        let detail = db_err
-                            .message()
-                            .to_string();
+                        let detail = db_err.message().to_string();
                         Self::BadRequest(detail)
                     }
                     _ => Self::Internal(db_err.message().to_string()),

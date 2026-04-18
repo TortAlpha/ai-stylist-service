@@ -24,10 +24,7 @@ CREATE TABLE product (
 
     ai_notes          TEXT,
 
-    images_path       TEXT,
     image_count       INT            NOT NULL DEFAULT 0 CHECK (image_count >= 0),
-    preview_image_key TEXT,
-    product_url       TEXT,
 
     version           INT            NOT NULL DEFAULT 1,
 
@@ -48,10 +45,7 @@ COMMENT ON COLUMN product.status             IS 'Lifecycle status: intake → in
 COMMENT ON COLUMN product.purchase_price     IS 'How much the item was bought for (cost basis)';
 COMMENT ON COLUMN product.purchase_location_id IS 'FK to normalized purchase_location dimension for sourcing filters and analytics';
 COMMENT ON COLUMN product.ai_notes           IS 'AI-generated notes — descriptions, tags suggestions, pricing hints, etc.';
-COMMENT ON COLUMN product.images_path        IS 'Path to image directory in storage (e.g. S3 bucket prefix)';
-COMMENT ON COLUMN product.image_count        IS 'Number of images uploaded — used for additive uploads';
-COMMENT ON COLUMN product.preview_image_key  IS 'S3 object key for preview thumbnail — presigned URL generated on read';
-COMMENT ON COLUMN product.product_url        IS 'Link to the full product page on the storefront';
+COMMENT ON COLUMN product.image_count        IS 'Number of images uploaded — managed by photo upload jobs';
 COMMENT ON COLUMN product.version            IS 'Optimistic lock counter — incremented on every update';
 
 -- ============================================================

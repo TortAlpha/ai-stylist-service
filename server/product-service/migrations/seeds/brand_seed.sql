@@ -148,10 +148,6 @@ INSERT INTO brand (name, code, tier, country) VALUES
 
     -- G-Star
     ('G-Star RAW',              'GSR',  'premium', 'Netherlands')
-ON CONFLICT (code) DO UPDATE
-SET
-    name = EXCLUDED.name,
-    tier = EXCLUDED.tier,
-    country = EXCLUDED.country;
+ON CONFLICT DO NOTHING;
 
 COMMIT;

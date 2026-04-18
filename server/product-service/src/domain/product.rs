@@ -13,15 +13,12 @@ pub struct Product {
     pub name: String,
     pub brand_id: i32,
     pub category_id: i32,
+    pub purchase_location_id: Option<i32>,
     pub status: ProductStatus,
     pub purchase_price: Option<Decimal>,
-    pub purchase_location: Option<String>,
     pub currency: String,
     pub ai_notes: Option<String>,
-    pub images_path: Option<String>,
     pub image_count: i32,
-    pub preview_image_key: Option<String>,
-    pub product_url: Option<String>,
     pub version: i32,
     pub is_deleted: bool,
     pub deleted_at: Option<DateTime<Utc>>,
@@ -40,8 +37,6 @@ pub struct ProductFull {
     pub ai_notes: Option<String>,
     pub category_id: i32,
     pub image_count: i32,
-    pub preview_image_key: Option<String>,
-    pub product_url: Option<String>,
     pub version: i32,
 
     // Status & type (string enums)
@@ -70,16 +65,28 @@ pub struct ProductFull {
     pub is_limited_edition: Option<bool>,
     pub special_notes: Option<String>,
 
-    // Type-specific fields (flattened from product_details)
-    pub clothing_size: Option<String>,
-    pub clothing_fit: Option<String>,
-    pub shoe_size: Option<String>,
+    // Sizing (unified)
+    pub size_group: String,
+    pub size_value: Option<String>,
+    pub size_value2: Option<String>,
     pub size_system: Option<String>,
+    pub measurement_cm: Option<Decimal>,
+
+    // Clothing
+    pub clothing_fit: Option<String>,
+
+    // Footwear
+    pub shoe_width: Option<String>,
     pub insole_length_cm: Option<Decimal>,
+
+    // Bags
     pub bag_width_cm: Option<Decimal>,
     pub bag_height_cm: Option<Decimal>,
     pub bag_depth_cm: Option<Decimal>,
     pub bag_handle_type: Option<String>,
+    pub bag_size_label: Option<String>,
+
+    // Jewelry
     pub jewelry_metal: Option<String>,
     pub jewelry_stone: Option<String>,
     pub jewelry_clasp_type: Option<String>,
@@ -105,6 +112,63 @@ pub struct ProductHistory {
     pub product_id: Uuid,
     pub version: i32,
     pub changes: serde_json::Value,
+    pub changed_by: Option<String>,
+    pub changed_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ProductStatusHistory {
+    pub id: i64,
+    pub product_id: Uuid,
+    pub product_version: i32,
+    pub old_status: Option<ProductStatus>,
+    pub new_status: ProductStatus,
+    pub changed_by: Option<String>,
+    pub changed_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR")]
+pub enum ProductEventType {
+    #[sqlx(rename = "product.created")]
+    #[serde(rename = "product.created")]
+    ProductCreated,
+    #[sqlx(rename = "product.updated")]
+    #[serde(rename = "product.updated")]
+    ProductUpdated,
+    #[sqlx(rename = "product.status_changed")]
+    #[serde(rename = "product.status_changed")]
+    ProductStatusChanged,
+    #[sqlx(rename = "product.deleted")]
+    #[serde(rename = "product.deleted")]
+    ProductDeleted,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ProductOutboxEvent {
+    pub id: i64,
+    pub product_id: Uuid,
+    pub event_type: ProductEventType,
+    pub product_version: i32,
+    pub payload: serde_json::Value,
+    pub occurred_at: DateTime<Utc>,
+    pub published_at: Option<DateTime<Utc>>,
+    pub retry_count: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ProductAuditBuffer {
+    pub txid: i64,
+    pub product_id: Uuid,
+    pub created_in_tx: bool,
+    pub product_changes: serde_json::Value,
+    pub detail_changes: serde_json::Value,
+    pub style_tag_added: Vec<i32>,
+    pub style_tag_removed: Vec<i32>,
+    pub vibe_tag_added: Vec<i32>,
+    pub vibe_tag_removed: Vec<i32>,
+    pub season_added: Vec<i32>,
+    pub season_removed: Vec<i32>,
     pub changed_by: Option<String>,
     pub changed_at: DateTime<Utc>,
 }

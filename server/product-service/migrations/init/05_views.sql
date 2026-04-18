@@ -13,8 +13,6 @@ SELECT
     p.ai_notes,
     p.category_id,
     p.image_count,
-    p.preview_image_key,
-    p.product_url,
     p.version,
 
     p.status,

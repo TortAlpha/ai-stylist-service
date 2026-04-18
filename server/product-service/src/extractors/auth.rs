@@ -62,9 +62,7 @@ impl FromRequest for AdminUser {
             let user = user_fut.await?;
 
             if user.role != "admin" {
-                return Err(ServiceError::Forbidden(
-                    "Admin access required".into(),
-                ));
+                return Err(ServiceError::Forbidden("Admin access required".into()));
             }
 
             Ok(AdminUser {
