@@ -12,7 +12,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres-product-data:/var/lib/postgresql/data
-      - ./server/product-service/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./server/product-service/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d product_db"]
       interval: 10s
@@ -98,6 +98,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres-product:5432/product_db
       SERVICE_PORT: "8081"
+      RUST_LOG: info,actix_web=info,product_service=debug,sqlx=warn
       S3_IMAGES_BUCKET: ava-product-images
       S3_PREVIEW_BUCKET: ava-product-previews
       AWS_ENDPOINT_URL: http://minio:9000
@@ -119,6 +120,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres-auth:5432/auth_db
       SERVICE_PORT: "8083"
+      RUST_LOG: info,actix_web=info,auth_service=debug,sqlx=warn
       JWT_SECRET: dev-jwt-secret-change-in-production
       USER_SERVICE_URL: http://user-service:8082
     depends_on:
@@ -133,6 +135,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres-user:5432/user_db
       SERVICE_PORT: "8082"
+      RUST_LOG: info,actix_web=info,user_service=debug,sqlx=warn
     depends_on:
       postgres-user:
         condition: service_healthy
@@ -148,6 +151,16 @@ services:
       - product-service
       - auth-service
       - user-service
+
+  sc-admin:
+    build:
+      context: ./client/sc-admin
+      dockerfile: Dockerfile
+    container_name: sc-admin
+    ports:
+      - "4201:80"
+    depends_on:
+      - nginx
 
   # ───── API Gateway ─────
 
