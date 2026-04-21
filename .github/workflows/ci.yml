@@ -144,7 +144,7 @@ jobs:
         run: cargo test
 
   sc-client-admin:
-    name: sc-admin
+    name: sc-client-admin
     needs: changes
     if: ${{ needs.changes.outputs.admin == 'true' }}
     runs-on: ubuntu-latest
