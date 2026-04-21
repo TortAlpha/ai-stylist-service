@@ -44,11 +44,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .app_data(auth_service.clone())
-            .service(
-                web::scope("/api")
-                    .configure(handler::auth_handler::configure)
-                    .configure(handler::internal_handler::configure),
-            )
+            .service(web::scope("/api").configure(handler::auth_handler::configure))
     })
     .bind(("0.0.0.0", config.port))?
     .run()
