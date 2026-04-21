@@ -171,10 +171,10 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        run: npm run test -- --watch=false --browsers=ChromeHeadless
+        run: npm run test:unit
 
   docker-matrix:
-    name: docker matrix
+    name: docker pipelines
     needs: changes
     runs-on: ubuntu-latest
     outputs:
@@ -249,7 +249,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
 
       - name: Scan image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: sc/${{ matrix.service }}:scan
           severity: HIGH,CRITICAL

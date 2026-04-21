@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.83
+ARG RUST_VERSION=1.85
 
 FROM rust:${RUST_VERSION}-slim-trixie AS chef
 RUN apt-get update \
