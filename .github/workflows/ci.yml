@@ -206,7 +206,7 @@ jobs:
     name: docker-${{ matrix.service }}
     needs: docker-matrix
     if: ${{ needs.docker-matrix.outputs.any == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
       matrix:
@@ -220,38 +220,25 @@ jobs:
           dockerfile: ${{ matrix.context }}/Dockerfile
           failure-threshold: warning
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build multi-arch image (amd64 + arm64)
+      - name: Build arm64 image
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.context }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: false
+          load: true
           tags: sc/${{ matrix.service }}:ci
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-      - name: Build amd64 image for scanning
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.context }}/Dockerfile
-          platforms: linux/amd64
-          push: false
-          load: true
-          tags: sc/${{ matrix.service }}:scan
-          cache-from: type=gha,scope=${{ matrix.service }}
-
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
-          image-ref: sc/${{ matrix.service }}:scan
+          image-ref: sc/${{ matrix.service }}:ci
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '0'
