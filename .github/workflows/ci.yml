@@ -41,8 +41,8 @@ jobs:
             admin:
               - 'client/sc-admin/**'
 
-  backend-auth:
-    name: backend (auth-service)
+  server-auth:
+    name: sc-auth-service
     needs: changes
     if: ${{ needs.changes.outputs.auth == 'true' }}
     runs-on: ubuntu-latest
@@ -75,8 +75,8 @@ jobs:
       - name: test
         run: cargo test --features test-mocks
 
-  backend-user:
-    name: backend (user-service)
+  server-user:
+    name: sc-user-service
     needs: changes
     if: ${{ needs.changes.outputs.user == 'true' }}
     runs-on: ubuntu-latest
@@ -109,8 +109,8 @@ jobs:
       - name: test
         run: cargo test --features test-mocks
 
-  backend-product:
-    name: backend (product-service)
+  server-product:
+    name: sc-product-service
     needs: changes
     if: ${{ needs.changes.outputs.product == 'true' }}
     runs-on: ubuntu-latest
@@ -143,8 +143,8 @@ jobs:
       - name: test
         run: cargo test
 
-  frontend-admin:
-    name: frontend (sc-admin)
+  sc-client-admin:
+    name: sc-admin
     needs: changes
     if: ${{ needs.changes.outputs.admin == 'true' }}
     runs-on: ubuntu-latest
@@ -172,3 +172,73 @@ jobs:
 
       - name: Unit tests
         run: npm run test -- --watch=false --browsers=ChromeHeadless
+
+  docker:
+    name: docker-${{ matrix.service }}
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-service
+            context: server/auth-service
+            changed: auth
+          - service: user-service
+            context: server/user-service
+            changed: user
+          - service: product-service
+            context: server/product-service
+            changed: product
+          - service: sc-admin
+            context: client/sc-admin
+            changed: admin
+    if: |
+      (matrix.changed == 'auth'    && needs.changes.outputs.auth    == 'true') ||
+      (matrix.changed == 'user'    && needs.changes.outputs.user    == 'true') ||
+      (matrix.changed == 'product' && needs.changes.outputs.product == 'true') ||
+      (matrix.changed == 'admin'   && needs.changes.outputs.admin   == 'true')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Dockerfile (hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.context }}/Dockerfile
+          failure-threshold: warning
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build multi-arch image (amd64 + arm64)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: sc/${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Build amd64 image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: sc/${{ matrix.service }}:scan
+          cache-from: type=gha,scope=${{ matrix.service }}
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sc/${{ matrix.service }}:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
