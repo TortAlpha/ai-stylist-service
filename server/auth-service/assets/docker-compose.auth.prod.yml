@@ -1,0 +1,31 @@
+services:
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: sc-auth-db
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_db}
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+      - ../migrations/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres} -d ${AUTH_DB_NAME:-auth_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  sc-auth-service:
+    image: ghcr.io/${GHCR_OWNER:-tortalpha}/sc-auth-service:${SC_VERSION}
+    container_name: sc-auth-service
+    environment:
+      DATABASE_URL: postgres://${AUTH_DB_USER:-postgres}:${AUTH_DB_PASSWORD}@postgres-auth:5432/${AUTH_DB_NAME:-auth_db}
+      SERVICE_PORT: "8083"
+      RUST_LOG: ${AUTH_RUST_LOG:-info}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://sc-user-service:8082}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    restart: unless-stopped

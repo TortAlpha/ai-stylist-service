@@ -1,0 +1,9 @@
+services:
+  sc-client-admin:
+    image: ghcr.io/${GHCR_OWNER:-tortalpha}/sc-admin:${SC_VERSION}
+    container_name: sc-client-admin
+    ports:
+      - "127.0.0.1:4201:80"
+    depends_on:
+      - nginx
+    restart: unless-stopped
