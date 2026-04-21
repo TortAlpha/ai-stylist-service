@@ -1,0 +1,35 @@
+services:
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: postgres-auth
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_db}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+      - ../migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres} -d ${AUTH_DB_NAME:-auth_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      DATABASE_URL: postgres://${AUTH_DB_USER:-postgres}:${AUTH_DB_PASSWORD:-postgres}@postgres-auth:5432/${AUTH_DB_NAME:-auth_db}
+      SERVICE_PORT: "8083"
+      RUST_LOG: ${AUTH_RUST_LOG:-info,actix_web=info,auth_service=debug,sqlx=warn}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    restart: unless-stopped

@@ -1,0 +1,42 @@
+services:
+  postgres-product:
+    image: postgres:16-alpine
+    container_name: postgres-product
+    environment:
+      POSTGRES_USER: ${PRODUCT_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${PRODUCT_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${PRODUCT_DB_NAME:-product_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-product-data:/var/lib/postgresql/data
+      - ../migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PRODUCT_DB_USER:-postgres} -d ${PRODUCT_DB_NAME:-product_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  product-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: product-service
+    environment:
+      DATABASE_URL: postgres://${PRODUCT_DB_USER:-postgres}:${PRODUCT_DB_PASSWORD:-postgres}@postgres-product:5432/${PRODUCT_DB_NAME:-product_db}
+      SERVICE_PORT: "8081"
+      RUST_LOG: ${PRODUCT_RUST_LOG:-info,actix_web=info,product_service=debug,sqlx=warn}
+      S3_IMAGES_BUCKET: ${S3_IMAGES_BUCKET:-ava-product-images}
+      S3_PREVIEW_BUCKET: ${S3_PREVIEW_BUCKET:-ava-product-previews}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://minio:9000}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped

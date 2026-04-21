@@ -1,13 +1,17 @@
-FROM node:20-alpine AS builder
+ARG NODE_VERSION=22.22
+ARG NGINX_VERSION=1.27
+
+FROM node:${NODE_VERSION}-alpine AS builder
 
 WORKDIR /app
+
 COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 
 COPY . .
-RUN npx ng build --configuration=production
+RUN npm run build -- --configuration=production
 
-FROM nginx:1.25-alpine
+FROM nginx:${NGINX_VERSION}-alpine AS runtime
 
 COPY --from=builder /app/dist/sc-admin/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
