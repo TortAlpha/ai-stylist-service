@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use rand::RngCore;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::auth::jwt::JwtManager;
@@ -38,8 +38,10 @@ impl AuthService {
     }
 
     fn verify_password(password: &str, password_hash: &str) -> Result<(), ServiceError> {
-        let parsed_hash = PasswordHash::new(password_hash)
-            .map_err(|e| ServiceError::Internal(format!("Invalid password hash: {e}")))?;
+        let parsed_hash = PasswordHash::new(password_hash).map_err(|e| {
+            error!(error = %e, "failed to parse stored password hash");
+            ServiceError::Internal("Internal error".into())
+        })?;
         Argon2::default()
             .verify_password(password.as_bytes(), &parsed_hash)
             .map_err(|_| ServiceError::Unauthorized("Invalid email or password".into()))
@@ -93,7 +95,8 @@ impl AuthService {
         self.session_repo
             .update_refresh_token(&req.refresh_token, &new_refresh)
             .await
-            .map_err(|e| ServiceError::Internal(e.to_string()))?;
+            .map_err(|e| ServiceError::Internal(e.to_string()))?
+            .ok_or_else(|| ServiceError::Unauthorized("Invalid refresh token".into()))?;
 
         info!(user_id = %session.user_id, role = %session.role, "service:auth refresh succeeded");
         Ok(AuthResponse {

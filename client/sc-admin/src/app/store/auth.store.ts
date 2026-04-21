@@ -71,8 +71,17 @@ export const AuthStore = signalStore(
       const accessToken = token ?? store.accessToken();
       if (!accessToken) return;
       try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        const payloadSegment = accessToken.split('.')[1];
+        if (!payloadSegment) return;
+
+        const base64Payload = payloadSegment
+          .replace(/-/g, '+')
+          .replace(/_/g, '/')
+          .padEnd(Math.ceil(payloadSegment.length / 4) * 4, '=');
+
+        const payload = JSON.parse(atob(base64Payload));
         const userId = payload.sub;
+        if (!userId) return;
         const user = await firstValueFrom(userApi.getUser(userId));
         patchState(store, { user });
       } catch {
