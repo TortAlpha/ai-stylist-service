@@ -26,7 +26,15 @@ CREATE TABLE jobs (
 
     run_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT jobs_blobs_pairing CHECK (
+        (blobs IS NULL AND blob_types IS NULL)
+        OR (
+            blobs IS NOT NULL AND blob_types IS NOT NULL
+            AND cardinality(blobs) = cardinality(blob_types)
+        )
+    )
 );
 
 CREATE INDEX idx_jobs_pending ON jobs (run_at) WHERE status = 'pending';
