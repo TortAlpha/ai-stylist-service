@@ -1,8 +1,8 @@
-ARG RUST_VERSION=1.88
+ARG RUST_VERSION=1.91
 
 FROM rust:${RUST_VERSION}-slim-trixie AS chef
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \
     && cargo install cargo-chef --locked --version ^0.1
 WORKDIR /app
