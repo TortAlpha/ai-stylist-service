@@ -1,0 +1,51 @@
+---
+title: Listing Service — listing_db (v4)
+---
+
+erDiagram
+
+    marketplace {
+        SERIAL id PK
+        VARCHAR name UK
+        VARCHAR code UK
+        TEXT base_url
+        BOOLEAN is_active
+        TIMESTAMPTZ created_at
+    }
+
+    product_listing {
+        SERIAL id PK
+        UUID product_id
+        INT marketplace_id FK
+        VARCHAR external_id
+        TEXT external_url
+        DECIMAL listing_price
+        DECIMAL sold_price
+        VARCHAR currency
+        VARCHAR status
+        TIMESTAMPTZ listed_at
+        TIMESTAMPTZ updated_at
+    }
+
+    listing_history {
+        BIGSERIAL id PK
+        INT listing_id FK
+        JSONB changes
+        VARCHAR changed_by
+        TIMESTAMPTZ changed_at
+    }
+
+    listing_reservation {
+        SERIAL id PK
+        INT listing_id FK,UK
+        UUID product_id
+        VARCHAR reserved_by
+        TIMESTAMPTZ reserved_until
+        TIMESTAMPTZ created_at
+    }
+
+    %% Relationships
+
+    marketplace ||--o{ product_listing : "listed on"
+    product_listing ||--o{ listing_history : "audit"
+    product_listing ||--o| listing_reservation : "reserved"

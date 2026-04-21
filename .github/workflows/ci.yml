@@ -1,0 +1,244 @@
+name: CI
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      auth: ${{ steps.filter.outputs.auth }}
+      user: ${{ steps.filter.outputs.user }}
+      product: ${{ steps.filter.outputs.product }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            auth:
+              - 'server/auth-service/**'
+            user:
+              - 'server/user-service/**'
+            product:
+              - 'server/product-service/**'
+            admin:
+              - 'client/sc-admin/**'
+
+  server-auth:
+    name: sc-auth-service
+    needs: changes
+    if: ${{ needs.changes.outputs.auth == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/auth-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/auth-service -> target
+          key: auth-service
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets --features test-mocks
+
+      - name: build
+        run: cargo build --all-targets --features test-mocks
+
+      - name: test
+        run: cargo test --features test-mocks
+
+  server-user:
+    name: sc-user-service
+    needs: changes
+    if: ${{ needs.changes.outputs.user == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/user-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/user-service -> target
+          key: user-service
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets --features test-mocks
+
+      - name: build
+        run: cargo build --all-targets --features test-mocks
+
+      - name: test
+        run: cargo test --features test-mocks
+
+  server-product:
+    name: sc-product-service
+    needs: changes
+    if: ${{ needs.changes.outputs.product == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/product-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/product-service -> target
+          key: product-service
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets
+
+      - name: build
+        run: cargo build --all-targets
+
+      - name: test
+        run: cargo test
+
+  sc-client-admin:
+    name: sc-client-admin
+    needs: changes
+    if: ${{ needs.changes.outputs.admin == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client/sc-admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/sc-admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run test:unit
+
+  docker-matrix:
+    name: docker pipelines
+    needs: changes
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.build.outputs.services }}
+      any: ${{ steps.build.outputs.any }}
+    steps:
+      - id: build
+        env:
+          CHANGED_AUTH: ${{ needs.changes.outputs.auth }}
+          CHANGED_USER: ${{ needs.changes.outputs.user }}
+          CHANGED_PRODUCT: ${{ needs.changes.outputs.product }}
+          CHANGED_ADMIN: ${{ needs.changes.outputs.admin }}
+        run: |
+          items=()
+          [ "$CHANGED_AUTH" = "true" ]    && items+=('{"service":"auth-service","context":"server/auth-service"}')
+          [ "$CHANGED_USER" = "true" ]    && items+=('{"service":"user-service","context":"server/user-service"}')
+          [ "$CHANGED_PRODUCT" = "true" ] && items+=('{"service":"product-service","context":"server/product-service"}')
+          [ "$CHANGED_ADMIN" = "true" ]   && items+=('{"service":"sc-admin","context":"client/sc-admin"}')
+          if [ ${#items[@]} -eq 0 ]; then
+            echo "services=[]" >> "$GITHUB_OUTPUT"
+            echo "any=false"   >> "$GITHUB_OUTPUT"
+          else
+            IFS=,; joined="${items[*]}"
+            echo "services=[${joined}]" >> "$GITHUB_OUTPUT"
+            echo "any=true"              >> "$GITHUB_OUTPUT"
+          fi
+
+  docker:
+    name: docker-${{ matrix.service }}
+    needs: docker-matrix
+    if: ${{ needs.docker-matrix.outputs.any == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.docker-matrix.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Dockerfile (hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.context }}/Dockerfile
+          failure-threshold: warning
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build arm64 image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          platforms: linux/arm64
+          push: false
+          load: true
+          tags: sc/${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: sc/${{ matrix.service }}:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'

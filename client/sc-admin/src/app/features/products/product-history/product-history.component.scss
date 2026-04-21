@@ -1,0 +1,16 @@
+    .history-page { padding: 24px; }
+    .breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 0.875rem; color: var(--p-text-secondary-color); }
+    .crumb { cursor: pointer; transition: color 0.15s; }
+    .crumb:hover { color: var(--p-primary-color); text-decoration: underline; }
+    .crumb.active { color: var(--p-text-color); font-weight: 500; cursor: default; }
+    .crumb.active:hover { color: var(--p-text-color); text-decoration: none; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+    .page-title { margin: 0; font-size: 1.4rem; font-weight: 700; }
+    .product-info { font-weight: 400; color: var(--p-text-secondary-color); }
+    .coming-soon {
+      text-align: center; padding: 60px 24px;
+      background: var(--app-subtle-bg); border-radius: 12px; border: 1px dashed var(--app-border);
+      color: var(--p-text-secondary-color);
+    }
+    .coming-soon h3 { margin: 0 0 8px; color: var(--p-text-color); }
+    .coming-soon p { margin: 4px 0; }

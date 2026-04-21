@@ -1,0 +1,11 @@
+services:
+  sc-admin:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: sc-admin
+    ports:
+      - "4201:80"
+    depends_on:
+      - nginx
+    restart: unless-stopped

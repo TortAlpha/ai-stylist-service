@@ -1,0 +1,14 @@
+@if (overlay()) {
+  <div class="spinner-overlay" role="status" [attr.aria-label]="'common.loading' | translate">
+    <div class="spinner-box">
+      <p-progressSpinner strokeWidth="3" styleClass="spinner" />
+      @if (message()) {
+        <p class="spinner-message">{{ message() }}</p>
+      }
+    </div>
+  </div>
+} @else {
+  <div class="spinner-inline" role="status" [attr.aria-label]="'common.loading' | translate">
+    <p-progressSpinner strokeWidth="3" styleClass="spinner-sm" />
+  </div>
+}

@@ -1,0 +1,42 @@
+
+    <p-dialog
+      [header]="listing ? ('admin.listings.editListing' | translate) : ('admin.listings.addListing' | translate)"
+      [visible]="visible"
+      (visibleChange)="onVisibleChange($event)"
+      [modal]="true"
+      [style]="{ width: '450px' }">
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="form-fields">
+          <div class="field">
+            <label for="marketplace_id">{{ 'admin.listings.fields.marketplace' | translate }} *</label>
+            <p-select id="marketplace_id" formControlName="marketplace_id"
+              [options]="marketplaces" optionLabel="name" optionValue="id"
+              placeholder="Select Marketplace" styleClass="w-full" />
+          </div>
+          <div class="field">
+            <label for="external_id">{{ 'admin.listings.fields.externalId' | translate }}</label>
+            <input pInputText id="external_id" formControlName="external_id" class="w-full" />
+          </div>
+          <div class="field">
+            <label for="external_url">{{ 'admin.listings.fields.externalUrl' | translate }}</label>
+            <input pInputText id="external_url" formControlName="external_url" class="w-full" />
+          </div>
+          <div class="field">
+            <label for="listing_price">{{ 'admin.listings.fields.listingPrice' | translate }}</label>
+            <input pInputText id="listing_price" formControlName="listing_price" class="w-full" />
+          </div>
+          <div class="field">
+            <label for="currency">{{ 'admin.listings.fields.currency' | translate }}</label>
+            <p-select id="currency" formControlName="currency"
+              [options]="currencies" placeholder="Select Currency" styleClass="w-full" />
+          </div>
+        </div>
+      </form>
+
+      <ng-template pTemplate="footer">
+        <p-button [label]="'common.cancel' | translate" severity="secondary" (onClick)="cancel()" />
+        <p-button [label]="'common.save' | translate" icon="pi pi-check" (onClick)="onSubmit()"
+          [disabled]="form.invalid" [loading]="saving" />
+      </ng-template>
+    </p-dialog>

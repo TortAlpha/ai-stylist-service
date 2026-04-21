@@ -1,0 +1,685 @@
+{
+  "app": {
+    "name": "SC",
+    "tagline": "Брендовая одежда секонд-хенд"
+  },
+  "nav": {
+    "catalog": "Каталог",
+    "myProfile": "Мой профиль",
+    "adminPanel": "Панель управления",
+    "myListings": "Мои объявления",
+    "login": "Войти",
+    "register": "Регистрация",
+    "logout": "Выйти",
+    "viewSite": "Просмотр сайта"
+  },
+  "footer": {
+    "copyright": "© {year} SC — Брендовая одежда секонд-хенд",
+    "contact": "Контакт"
+  },
+  "auth": {
+    "login": {
+      "title": "Вход",
+      "subtitle": "С возвращением",
+      "email": "Email",
+      "emailPlaceholder": "Введите email",
+      "password": "Пароль",
+      "passwordPlaceholder": "Введите пароль",
+      "submit": "Войти",
+      "noAccount": "Нет аккаунта?",
+      "registerLink": "Зарегистрироваться",
+      "loading": "Выполняется вход...",
+      "error": "Неверный email или пароль"
+    },
+    "register": {
+      "title": "Создать аккаунт",
+      "subtitle": "Присоединяйтесь к нам",
+      "name": "Имя",
+      "namePlaceholder": "Введите имя",
+      "surname": "Фамилия",
+      "surnamePlaceholder": "Введите фамилию",
+      "email": "Email",
+      "emailPlaceholder": "Введите email",
+      "password": "Пароль",
+      "passwordPlaceholder": "Придумайте пароль",
+      "confirmPassword": "Подтвердите пароль",
+      "confirmPasswordPlaceholder": "Повторите пароль",
+      "phone": "Телефон",
+      "phonePlaceholder": "Введите номер телефона",
+      "optional": "(необязательно)",
+      "submit": "Создать аккаунт",
+      "haveAccount": "Уже есть аккаунт?",
+      "hasAccount": "Уже есть аккаунт?",
+      "loginLink": "Войти",
+      "loading": "Создание аккаунта...",
+      "success": "Аккаунт успешно создан",
+      "error": "Ошибка регистрации"
+    },
+    "validation": {
+      "emailRequired": "Email обязателен",
+      "emailInvalid": "Введите корректный email",
+      "passwordRequired": "Пароль обязателен",
+      "passwordMinLength": "Пароль должен быть не менее 8 символов",
+      "passwordMismatch": "Пароли не совпадают",
+      "nameRequired": "Имя обязательно",
+      "surnameRequired": "Фамилия обязательна"
+    }
+  },
+  "catalog": {
+    "title": "Каталог",
+    "search": "Поиск по названию...",
+    "sort": "Сортировка",
+    "sortOptions": {
+      "priceAsc": "Цена: по возрастанию",
+      "priceDesc": "Цена: по убыванию",
+      "newest": "Сначала новые",
+      "nameAz": "Название: А-Я"
+    },
+    "results": "Найдено {count} товаров",
+    "noResults": "Товары не найдены",
+    "noResultsMessage": "Попробуйте изменить фильтры или поисковый запрос",
+    "filters": {
+      "title": "Фильтры",
+      "brand": "Бренд",
+      "category": "Категория",
+      "productType": "Тип товара",
+      "gender": "Пол",
+      "condition": "Состояние",
+      "priceRange": "Диапазон цен",
+      "priceMin": "Мин",
+      "priceMax": "Макс",
+      "season": "Сезон",
+      "clearAll": "Сбросить все фильтры",
+      "apply": "Применить фильтры"
+    }
+  },
+  "product": {
+    "sku": "Артикул",
+    "brand": "Бренд",
+    "category": "Категория",
+    "gender": "Пол",
+    "condition": "Состояние",
+    "material": "Материал",
+    "color": "Цвет",
+    "year": "Год",
+    "size": "Размер",
+    "fit": "Крой",
+    "shoeSize": "Размер обуви",
+    "sizeSystem": "Система размеров",
+    "dimensions": "Размеры (Ш × В × Г см)",
+    "handleType": "Тип ручки",
+    "metal": "Металл",
+    "stone": "Камень",
+    "claspType": "Тип застёжки",
+    "vintage": "Винтаж",
+    "collab": "Коллаборация",
+    "collabName": "Название коллаборации",
+    "limitedEdition": "Лимитированное издание",
+    "notes": "Особые заметки",
+    "tags": {
+      "style": "Стилевые теги",
+      "vibe": "Теги атмосферы",
+      "season": "Сезоны"
+    },
+    "price": {
+      "original": "Исходная цена",
+      "discount": "Скидка",
+      "final": "Итоговая цена"
+    },
+    "status": "Статус",
+    "quantity": "Количество",
+    "inStock": "В наличии",
+    "productUrl": "Ссылка на товар",
+    "currency": "Валюта",
+    "type": "Тип товара"
+  },
+  "admin": {
+    "panel": "Панель управления",
+    "products": {
+      "title": "Товары",
+      "addProduct": "Добавить товар",
+      "editProduct": "Редактировать товар",
+      "columns": {
+        "preview": "Фото",
+        "sku": "Артикул",
+        "name": "Название",
+        "brand": "Бренд",
+        "category": "Категория",
+        "type": "Тип",
+        "status": "Статус",
+        "price": "Цена",
+        "inStock": "В наличии",
+        "quantity": "Кол-во",
+        "actions": "Действия"
+      },
+      "actions": {
+        "manage": "Управление",
+        "listings": "Объявления",
+        "viewHistory": "История",
+        "delete": "Удалить"
+      },
+      "list": {
+        "searchPlaceholder": "Поиск по названию или артикулу",
+        "allBrands": "Все бренды",
+        "allTypes": "Все типы",
+        "allStatuses": "Все статусы",
+        "allGenders": "Все",
+        "activeFilters": "Активные фильтры: {{count}}",
+        "clearFilters": "Сбросить фильтры",
+        "sortBy": "Сортировать по",
+        "order": "Порядок",
+        "viewCards": "Карточки",
+        "viewTable": "Таблица",
+        "sortOrderAsc": "Порядок сортировки: по возрастанию",
+        "sortOrderDesc": "Порядок сортировки: по убыванию",
+        "confirmDeleteTitle": "Удалить товар",
+        "confirmDeleteMessage": "Удалить \"{{name}}\"?",
+        "deleteFailedSummary": "Ошибка удаления",
+        "loadVersionFailedDetail": "Не удалось загрузить версию товара",
+        "deleteFailedDetail": "Не удалось удалить товар",
+        "deletedSummary": "Удалено",
+        "deletedDetail": "Товар удалён",
+        "actions": {
+          "view": "Открыть",
+          "images": "Изображения"
+        },
+        "sort": {
+          "createdAt": "Дата создания",
+          "updatedAt": "Дата обновления",
+          "price": "Цена",
+          "name": "Название"
+        }
+      },
+      "form": {
+        "loadingProduct": "Загрузка товара...",
+        "typeDetailsTitle": "Детали: {{type}}",
+        "categoryOptionLabel": "{{gender}} - {{path}} ({{type}})",
+        "fields": {
+          "productName": "Название товара",
+          "purchasePrice": "Закупочная цена",
+          "purchaseLocation": "Место покупки",
+          "aiNotesOptional": "AI заметки (необязательно)",
+          "yearOfRelease": "Год выпуска",
+          "vintageItem": "Винтажная вещь",
+          "letterSize": "Буквенный размер",
+          "sizeValue": "Значение размера",
+          "sizeValue2": "Доп. значение размера",
+          "waist": "Талия",
+          "length": "Длина",
+          "ringSize": "Размер кольца",
+          "measurementCm": "Измерение (см)",
+          "hatSize": "Размер головного убора",
+          "shoeWidth": "Ширина обуви",
+          "insoleLengthCm": "Длина стельки (см)",
+          "widthCm": "Ширина (см)",
+          "heightCm": "Высота (см)",
+          "depthCm": "Глубина (см)",
+          "bagSizeLabel": "Размер сумки"
+        },
+        "placeholders": {
+          "productName": "например, Gucci Marmont Bag",
+          "selectBrand": "Выберите бренд",
+          "searchBrands": "Поиск брендов...",
+          "selectCategory": "Выберите категорию",
+          "searchCategories": "Поиск категорий...",
+          "selectStatus": "Выберите статус",
+          "purchasePrice": "например, 250.00",
+          "selectCurrency": "Выберите валюту",
+          "selectLocation": "Выберите место",
+          "aiNotes": "Заметки для AI-обработки...",
+          "selectCondition": "Выберите состояние",
+          "material": "например, кожа",
+          "color": "например, чёрный",
+          "year": "например, 2020",
+          "collabName": "например, x Nike",
+          "specialNotes": "Особые заметки о товаре...",
+          "letterSize": "например, XS, S, M, L",
+          "sizeValue": "например, 42 или M",
+          "selectSizeSystem": "Выберите систему",
+          "waist": "например, 28",
+          "length": "например, 32",
+          "shoeSize": "например, 42",
+          "ringSize": "например, 7",
+          "measurementCm": "например, 26.5",
+          "hatSize": "например, M или 58",
+          "hatMeasurementCm": "например, 58",
+          "sizeValueGeneric": "например, M, 42, 28",
+          "optional": "Необязательно",
+          "selectFit": "Выберите крой",
+          "selectWidth": "Выберите ширину",
+          "insoleLengthCm": "например, 27.5",
+          "widthCm": "например, 30",
+          "heightCm": "например, 20",
+          "depthCm": "например, 10",
+          "selectHandle": "Выберите тип ручки",
+          "bagSizeLabel": "например, Medium",
+          "metal": "например, золото",
+          "stone": "например, бриллиант",
+          "claspType": "например, карабин",
+          "selectStyles": "Выберите стили...",
+          "selectVibes": "Выберите вайб-теги...",
+          "selectSeasons": "Выберите сезоны..."
+        },
+        "size": {
+          "selectCategoryPrompt": "Выберите категорию, чтобы увидеть подходящие параметры размера.",
+          "oneSizeNote": "Для этой категории используется единый размер. Заполнение не требуется.",
+          "dimensionsNote": "Размеры указываются в полях сумки (Ш/В/Г)."
+        },
+        "typeDetails": {
+          "noneForAccessories": "Для аксессуаров дополнительных полей нет."
+        },
+        "images": {
+          "currentPreviewAlt": "Текущее превью",
+          "previewImage": "Превью-изображение",
+          "previewHint": "Это изображение показывается в списках и карточках товаров",
+          "replacePreview": "Заменить превью",
+          "uploadPreview": "Загрузить превью",
+          "chooseImages": "Выбрать изображения",
+          "uploadAll": "Загрузить все",
+          "clearLoadedPhotos": "Очистить выбранные фото",
+          "uploadHint": "Перетащите изображения сюда или нажмите «Выбрать изображения»",
+          "uploadLimitHint": "Максимум 10 изображений, до 10MB каждое",
+          "productImageAlt": "Изображение товара"
+        },
+        "actions": {
+          "saveChanges": "Сохранить изменения",
+          "createProduct": "Создать товар"
+        },
+        "validation": {
+          "nameRequired": "Название обязательно",
+          "brandRequired": "Бренд обязателен",
+          "categoryRequired": "Категория обязательна",
+          "conditionRequired": "Состояние обязательно"
+        },
+        "options": {
+          "fit": {
+            "regular": "Обычный",
+            "slim": "Приталенный",
+            "oversized": "Оверсайз",
+            "relaxed": "Свободный"
+          },
+          "shoeWidths": {
+            "narrow": "Узкая",
+            "regular": "Стандартная",
+            "wide": "Широкая"
+          }
+        },
+        "messages": {
+          "loadFailedSummary": "Ошибка загрузки",
+          "loadFailedDetail": "Не удалось загрузить товар",
+          "updateFailedSummary": "Ошибка обновления",
+          "updateFailedDetail": "Не удалось обновить товар",
+          "createFailedSummary": "Ошибка создания",
+          "createFailedDetail": "Не удалось создать товар",
+          "saveFailedSummary": "Ошибка сохранения",
+          "genericError": "Произошла ошибка",
+          "previewQueuedSummary": "Превью поставлено в очередь",
+          "previewQueuedDetail": "Задача загрузки превью поставлена в очередь.",
+          "previewUploadFailed": "Не удалось загрузить превью",
+          "imagesQueuedSummary": "Изображения поставлены в очередь",
+          "imagesQueuedDetail": "Задача загрузки изображений поставлена в очередь.",
+          "imagesUploadFailed": "Не удалось загрузить изображения"
+        }
+      },
+      "staleVersion": "Товар был изменён другим пользователем. Пожалуйста, обновите страницу.",
+      "deleteConfirm": "Вы уверены, что хотите удалить этот товар?",
+      "detail": {
+        "loading": "Загрузка товара...",
+        "notFound": "Товар не найден",
+        "noImages": "Изображения не загружены",
+        "backToList": "К списку",
+        "updateStatus": "Обновить статус",
+        "statusUpdated": "Статус товара обновлён",
+        "sections": {
+          "images": "Изображения",
+          "basicInfo": "Основная информация",
+          "details": "Детали",
+          "sizeAndType": "Размер и тип",
+          "tags": "Теги"
+        },
+        "fields": {
+          "purchaseLocation": "Место покупки",
+          "version": "Версия",
+          "updatedAt": "Обновлено",
+          "sizeGroup": "Группа размера"
+        }
+      },
+      "images": {
+        "title": "Изображения товара",
+        "backToDetail": "К деталям",
+        "loading": "Загрузка...",
+        "count": "{{count}} изображений",
+        "noPreview": "Превью не задано",
+        "refresh": "Обновить",
+        "deleteImage": "Удалить изображение",
+        "confirmDeleteImage": "Удалить это изображение?",
+        "mockNotImplemented": {
+          "summary": "Пока недоступно",
+          "detail": "Удаление изображений ещё не поддерживается на бэкенде."
+        },
+        "sections": {
+          "preview": "Превью",
+          "uploadImages": "Загрузка изображений",
+          "gallery": "Галерея"
+        }
+      }
+    },
+    "listings": {
+      "title": "Мои объявления",
+      "addListing": "Добавить объявление",
+      "editListing": "Редактировать объявление",
+      "productListings": "Объявления товара",
+      "columns": {
+        "product": "Товар",
+        "marketplace": "Маркетплейс",
+        "status": "Статус",
+        "listingPrice": "Цена объявления",
+        "soldPrice": "Цена продажи",
+        "externalUrl": "Ссылка",
+        "listedAt": "Дата размещения",
+        "actions": "Действия"
+      },
+      "actions": {
+        "showProductListings": "Объявления товара",
+        "edit": "Редактировать",
+        "delete": "Удалить"
+      },
+      "deleteConfirm": "Вы уверены, что хотите удалить это объявление?",
+      "fields": {
+        "marketplace": "Маркетплейс",
+        "externalId": "Внешний ID",
+        "externalUrl": "Внешняя ссылка",
+        "listingPrice": "Цена объявления",
+        "currency": "Валюта",
+        "status": "Статус",
+        "soldPrice": "Цена продажи"
+      }
+    },
+    "history": {
+      "title": "История товара",
+      "back": "Назад к товарам",
+      "version": "Версия",
+      "changedAt": "Изменено",
+      "changedBy": "Изменил",
+      "changes": "Изменения"
+    },
+    "brands": {
+      "title": "Бренды",
+      "addBrand": "Добавить бренд",
+      "editBrand": "Редактировать бренд",
+      "columns": {
+        "id": "ID",
+        "name": "Название",
+        "code": "Код",
+        "tier": "Уровень",
+        "country": "Страна",
+        "createdAt": "Создан"
+      },
+      "list": {
+        "searchPlaceholder": "Поиск по названию или коду",
+        "empty": "Бренды не найдены",
+        "confirmDeleteTitle": "Удалить бренд",
+        "confirmDeleteMessage": "Удалить \"{{name}}\"?",
+        "deleteFailedSummary": "Ошибка удаления",
+        "deleteFailedDetail": "Не удалось удалить бренд",
+        "deletedSummary": "Удалено",
+        "deletedDetail": "Бренд удалён"
+      },
+      "form": {
+        "loadingBrand": "Загрузка бренда...",
+        "fields": {
+          "name": "Название бренда",
+          "code": "Код",
+          "tier": "Уровень",
+          "country": "Страна"
+        },
+        "placeholders": {
+          "name": "например, Gucci",
+          "code": "например, GUCCI",
+          "tier": "Выберите уровень",
+          "country": "например, Италия"
+        },
+        "validation": {
+          "nameRequired": "Название обязательно",
+          "codeRequired": "Код обязателен",
+          "tierRequired": "Уровень обязателен"
+        },
+        "actions": {
+          "saveChanges": "Сохранить изменения",
+          "createBrand": "Создать бренд"
+        },
+        "messages": {
+          "loadFailedSummary": "Ошибка загрузки",
+          "loadFailedDetail": "Не удалось загрузить бренд",
+          "updateFailedSummary": "Ошибка обновления",
+          "updateFailedDetail": "Не удалось обновить бренд",
+          "createFailedSummary": "Ошибка создания",
+          "createFailedDetail": "Не удалось создать бренд",
+          "saveFailedSummary": "Ошибка сохранения",
+          "genericError": "Произошла ошибка"
+        }
+      }
+    },
+    "categories": {
+      "title": "Категории",
+      "addCategory": "Добавить категорию",
+      "editCategory": "Редактировать категорию"
+    },
+    "tags": {
+      "title": "Теги",
+      "styleTags": "Стилевые теги",
+      "vibeTags": "Теги атмосферы",
+      "seasons": "Сезоны"
+    }
+  },
+  "profile": {
+    "title": "Мой профиль",
+    "editProfile": "Редактировать профиль",
+    "manageAddresses": "Управление адресами",
+    "name": "Имя",
+    "surname": "Фамилия",
+    "email": "Email",
+    "phone": "Телефон",
+    "memberSince": "Участник с",
+    "status": "Статус",
+    "role": "Роль",
+    "update": {
+      "success": "Профиль обновлён",
+      "successDetail": "Ваш профиль успешно обновлён",
+      "error": "Ошибка обновления",
+      "errorDetail": "Не удалось обновить профиль"
+    },
+    "status.active": "Активен",
+    "status.inactive": "Неактивен",
+    "role.admin": "Администратор",
+    "role.user": "Пользователь",
+    "addresses": {
+      "title": "Адреса",
+      "addAddress": "Добавить адрес",
+      "editAddress": "Редактировать адрес",
+      "deleteConfirm": "Вы уверены, что хотите удалить этот адрес?",
+      "noAddresses": "Адреса не добавлены",
+      "fields": {
+        "street": "Улица",
+        "buildingNum": "Номер дома",
+        "floorNum": "Этаж",
+        "apartmentNum": "Квартира",
+        "postIndex": "Почтовый индекс"
+      },
+      "add": {
+        "success": "Адрес добавлен",
+        "error": "Не удалось добавить адрес"
+      },
+      "update": {
+        "success": "Адрес обновлён",
+        "error": "Не удалось обновить адрес"
+      },
+      "delete": {
+        "success": "Адрес удалён",
+        "error": "Не удалось удалить адрес"
+      }
+    }
+  },
+  "statuses": {
+    "intake": "Приём",
+    "inspection": "Проверка",
+    "rejected": "Отклонён",
+    "preparation": "Подготовка",
+    "photo_queue": "Очередь фото",
+    "photo_done": "Фото готово",
+    "ready": "Готов к продаже",
+    "reserved": "Зарезервирован",
+    "sold": "Продан",
+    "returned": "Возвращён"
+  },
+  "listingStatuses": {
+    "active": "Активно",
+    "paused": "Приостановлено",
+    "sold": "Продано",
+    "removed": "Удалено"
+  },
+  "conditions": {
+    "new_with_tags": "Новый с бирками",
+    "excellent": "Отличное",
+    "good": "Хорошее",
+    "fair": "Удовлетворительное"
+  },
+  "productTypes": {
+    "clothing": "Одежда",
+    "footwear": "Обувь",
+    "bags": "Сумки",
+    "jewelry": "Украшения",
+    "accessories": "Аксессуары"
+  },
+  "genders": {
+    "male": "Мужской",
+    "female": "Женский",
+    "unisex": "Унисекс"
+  },
+  "brandTiers": {
+    "mass": "Масс-маркет",
+    "premium": "Премиум",
+    "luxury": "Люкс"
+  },
+  "seasons": {
+    "summer": "Лето",
+    "winter": "Зима",
+    "demi-season": "Демисезон",
+    "all-season": "Всесезонный"
+  },
+  "marketplaces": {
+    "TG": "Telegram",
+    "EBAY": "eBay",
+    "ETSY": "Etsy",
+    "KP": "КупујемПродајем"
+  },
+  "fitTypes": {
+    "regular": "Прямой",
+    "slim": "Облегающий",
+    "oversized": "Оверсайз",
+    "relaxed": "Свободный"
+  },
+  "sizeSystems": {
+    "EU": "EU",
+    "US": "US",
+    "UK": "UK"
+  },
+  "handleTypes": {
+    "shoulder": "На плечо",
+    "crossbody": "Через плечо",
+    "hand": "В руку",
+    "backpack": "Рюкзак",
+    "tote": "Тоут"
+  },
+  "roles": {
+    "admin": "Администратор",
+    "user": "Пользователь"
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "add": "Добавить",
+    "back": "Назад",
+    "close": "Закрыть",
+    "confirm": "Подтвердить",
+    "yes": "Да",
+    "no": "Нет",
+    "loading": "Загрузка...",
+    "error": "Произошла ошибка",
+    "success": "Успешно",
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "clear": "Очистить",
+    "all": "Все",
+    "none": "Нет",
+    "noData": "Нет данных",
+    "required": "Это поле обязательно",
+    "invalidEmail": "Неверный адрес email",
+    "minLength": "Минимум {min} символов",
+    "maxLength": "Максимум {max} символов",
+    "min": "Минимальное значение {min}",
+    "max": "Максимальное значение {max}",
+    "actions": "Действия",
+    "page": "Страница",
+    "of": "из",
+    "total": "Всего",
+    "rows": "строк",
+    "language": "Язык",
+    "darkTheme": "Тёмная",
+    "lightTheme": "Светлая",
+    "preview": "Предпросмотр"
+  },
+  "errors": {
+    "generic": "Что-то пошло не так. Попробуйте снова.",
+    "notFound": "Страница не найдена",
+    "unauthorized": "У вас нет прав для просмотра этой страницы",
+    "forbidden": "Доступ запрещён"
+  },
+  "imageGallery": {
+    "clickToEnlarge": "Нажмите для увеличения",
+    "close": "Закрыть",
+    "previous": "Назад",
+    "next": "Вперёд",
+    "noImages": "Нет изображений"
+  },
+  "breadcrumbs": {
+    "home": "Главная",
+    "catalog": "Каталог",
+    "products": "Товары",
+    "admin": "Админ",
+    "history": "История",
+    "listings": "Объявления"
+  },
+  "emptyState": {
+    "noProducts": "Товары не найдены",
+    "noProductsMessage": "Попробуйте изменить поиск или фильтры",
+    "noListings": "Объявлений пока нет",
+    "noListingsMessage": "Добавьте объявление для начала работы",
+    "default": "Ничего не найдено"
+  },
+  "confirm": {
+    "deleteTitle": "Подтвердите удаление",
+    "deleteMessage": "Это действие нельзя отменить. Вы уверены?",
+    "acceptLabel": "Да, удалить",
+    "rejectLabel": "Отмена"
+  },
+  "form": {
+    "sections": {
+      "basicInfo": "Основная информация",
+      "details": "Детали",
+      "typeDetails": "Специфические детали",
+      "images": "Изображения",
+      "tags": "Теги"
+    },
+    "images": {
+      "upload": "Загрузить изображения",
+      "uploadPreview": "Загрузить превью",
+      "dragDrop": "Перетащите для сортировки",
+      "deleteImage": "Удалить изображение",
+      "maxImages": "Максимум 10 изображений",
+      "noImages": "Изображений пока нет"
+    }
+  }
+}

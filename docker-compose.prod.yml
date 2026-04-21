@@ -1,0 +1,58 @@
+name: sc
+
+services:
+  postgres-product:
+    extends:
+      file: ./server/product-service/assets/docker-compose.product.prod.yml
+      service: postgres-product
+
+  postgres-user:
+    extends:
+      file: ./server/user-service/assets/docker-compose.user.prod.yml
+      service: postgres-user
+
+  postgres-auth:
+    extends:
+      file: ./server/auth-service/assets/docker-compose.auth.prod.yml
+      service: postgres-auth
+
+  minio:
+    extends:
+      file: ./shared/assets/docker-compose.storage.prod.yml
+      service: minio
+
+  minio-init:
+    extends:
+      file: ./shared/assets/docker-compose.storage.prod.yml
+      service: minio-init
+
+  sc-product-service:
+    extends:
+      file: ./server/product-service/assets/docker-compose.product.prod.yml
+      service: sc-product-service
+
+  sc-auth-service:
+    extends:
+      file: ./server/auth-service/assets/docker-compose.auth.prod.yml
+      service: sc-auth-service
+
+  sc-user-service:
+    extends:
+      file: ./server/user-service/assets/docker-compose.user.prod.yml
+      service: sc-user-service
+
+  nginx:
+    extends:
+      file: ./nginx/assets/docker-compose.nginx.prod.yml
+      service: nginx
+
+  sc-client-admin:
+    extends:
+      file: ./client/sc-admin/assets/docker-compose.admin.prod.yml
+      service: sc-client-admin
+
+volumes:
+  postgres-product-data:
+  postgres-user-data:
+  postgres-auth-data:
+  minio-data:

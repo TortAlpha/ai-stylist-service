@@ -1,0 +1,383 @@
+
+    <div class="product-list-page">
+      <!-- Top bar -->
+      <div class="top-bar">
+        <div class="top-bar-left">
+          <h2 class="page-title">{{ 'admin.panel' | translate }} — {{ 'admin.products.title' | translate }}</h2>
+        </div>
+    <div class="top-bar-right">
+      <p-button
+        [label]="viewToggleLabel"
+        [icon]="viewToggleIcon"
+        severity="secondary"
+        size="small"
+        (onClick)="toggleViewMode()"
+      />
+      <p-button
+        [label]="'admin.products.addProduct' | translate"
+        icon="pi pi-plus"
+        size="small"
+        (onClick)="goToCreate()"
+          />
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filter-field search-field">
+          <label>{{ 'common.search' | translate }}</label>
+          <input
+            pInputText
+            [(ngModel)]="filterSearch"
+            (ngModelChange)="onSearchInput()"
+            [placeholder]="'admin.products.list.searchPlaceholder' | translate"
+            class="w-full"
+          />
+        </div>
+
+        <div class="filter-field">
+          <label>{{ 'product.brand' | translate }}</label>
+          <p-select
+            [options]="brandOptions"
+            [(ngModel)]="filterBrandId"
+            (ngModelChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            [placeholder]="'admin.products.list.allBrands' | translate"
+            [showClear]="true"
+            styleClass="w-full"
+          />
+        </div>
+
+        <div class="filter-field">
+          <label>{{ 'product.type' | translate }}</label>
+          <p-select
+            [options]="typeOptions"
+            [(ngModel)]="filterProductType"
+            (ngModelChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            [placeholder]="'admin.products.list.allTypes' | translate"
+            [showClear]="true"
+            styleClass="w-full"
+          />
+        </div>
+
+        <div class="filter-field">
+          <label>{{ 'product.status' | translate }}</label>
+          <p-select
+            [options]="statusOptions"
+            [(ngModel)]="filterStatus"
+            (ngModelChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            [placeholder]="'admin.products.list.allStatuses' | translate"
+            [showClear]="true"
+            styleClass="w-full"
+          />
+        </div>
+
+        <div class="filter-field">
+          <label>{{ 'product.gender' | translate }}</label>
+          <p-select
+            [options]="genderOptions"
+            [(ngModel)]="filterGender"
+            (ngModelChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            [placeholder]="'admin.products.list.allGenders' | translate"
+            [showClear]="true"
+            styleClass="w-full"
+          />
+        </div>
+
+        <div class="filter-actions">
+          <div class="filter-count">{{ 'admin.products.list.activeFilters' | translate: { count: activeFilterCount } }}</div>
+          @if (activeFilterCount > 0) {
+            <p-button
+              [label]="'admin.products.list.clearFilters' | translate"
+              severity="secondary"
+              icon="pi pi-times"
+              (onClick)="clearFilters()"
+            />
+          }
+        </div>
+
+        <div class="filter-field sort-field">
+          <label>{{ 'admin.products.list.sortBy' | translate }}</label>
+          <p-select
+            [options]="sortByOptions"
+            [(ngModel)]="sortBy"
+            (ngModelChange)="onFilterChange()"
+            optionLabel="label"
+            optionValue="value"
+            styleClass="w-full"
+          />
+        </div>
+
+        <div class="filter-field sort-field sort-order-field">
+          <label>{{ 'admin.products.list.order' | translate }}</label>
+          <p-button
+            [icon]="sortOrderIcon"
+            severity="secondary"
+            [outlined]="true"
+            [attr.aria-label]="sortOrderAriaLabel"
+            [attr.title]="sortOrderAriaLabel"
+            (onClick)="toggleSortOrder()"
+          />
+        </div>
+      </div>
+
+  @if (viewMode === 'table') {
+    <!-- Desktop table -->
+    <div class="table-wrapper desktop-only">
+      <p-table
+        [value]="store.products()"
+        [loading]="store.loading()"
+        [paginator]="true"
+        [rows]="store.perPage()"
+        [totalRecords]="store.total()"
+        [lazy]="true"
+        (onLazyLoad)="onPageChange($event)"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        styleClass="p-datatable-sm p-datatable-gridlines"
+        [scrollable]="true"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th class="preview-col">{{ 'admin.products.columns.preview' | translate }}</th>
+            <th style="width:110px">{{ 'product.sku' | translate }}</th>
+            <th>{{ 'admin.products.columns.name' | translate }}</th>
+            <th>{{ 'product.brand' | translate }}</th>
+            <th>{{ 'product.category' | translate }}</th>
+            <th>{{ 'admin.products.columns.type' | translate }}</th>
+            <th style="width:130px">{{ 'product.status' | translate }}</th>
+            <th style="width:100px">{{ 'product.size' | translate }}</th>
+            <th style="width:110px">{{ 'admin.products.columns.price' | translate }}</th>
+            <th style="width:360px">{{ 'common.actions' | translate }}</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-product>
+          <tr>
+            <td class="preview-cell">
+              <div class="preview-media">
+                @if (product.preview_url) {
+                  <img [src]="product.preview_url.thumb" [attr.alt]="'common.preview' | translate" class="preview-thumb" />
+                } @else {
+                  <div class="no-image-thumb"><i class="pi pi-image"></i></div>
+                }
+              </div>
+            </td>
+            <td class="sku-cell">{{ product.sku }}</td>
+            <td class="name-cell">
+              <button type="button" class="name-link" (click)="goToDetail(product.id)">{{ product.name }}</button>
+            </td>
+            <td>{{ product.brand_name }}</td>
+            <td>{{ product.category }}</td>
+            <td>{{ getTypeLabel(product.product_type) }}</td>
+            <td>{{ getStatusLabel(product.status) }}</td>
+            <td>{{ product.size?.size_value ?? '—' }}</td>
+            <td>
+              @if (product.purchase_price) {
+                {{ product.purchase_price }} {{ product.currency }}
+              } @else {
+                <span class="no-value">—</span>
+              }
+            </td>
+            <td>
+              <div class="action-buttons">
+                <p-button
+                  [label]="'admin.products.list.actions.view' | translate"
+                  icon="pi pi-eye"
+                  size="small"
+                  severity="secondary"
+                  (onClick)="goToDetail(product.id)"
+                />
+                <p-button
+                  [label]="'common.edit' | translate"
+                  icon="pi pi-pencil"
+                  size="small"
+                  severity="info"
+                  (onClick)="goToEdit(product.id)"
+                />
+                <p-button
+                  [label]="'admin.products.actions.listings' | translate"
+                  icon="pi pi-list"
+                  size="small"
+                  severity="secondary"
+                  (onClick)="goToListings(product.id)"
+                />
+                <p-button
+                  [label]="'admin.products.actions.viewHistory' | translate"
+                  icon="pi pi-history"
+                  size="small"
+                  severity="secondary"
+                  (onClick)="goToHistory(product.id)"
+                />
+                <p-button
+                  [label]="'admin.products.list.actions.images' | translate"
+                  icon="pi pi-images"
+                  size="small"
+                  severity="secondary"
+                  (onClick)="goToImages(product.id)"
+                />
+                <p-button
+                  [label]="'common.delete' | translate"
+                  icon="pi pi-trash"
+                  size="small"
+                  severity="danger"
+                  (onClick)="confirmDelete(product)"
+                />
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="11" class="empty-message">
+              <i class="pi pi-inbox" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+              {{ 'emptyState.noProducts' | translate }}
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+
+    <!-- Mobile card layout -->
+    <div class="mobile-only">
+      @if (store.loading()) {
+        <div class="loading-placeholder">{{ 'common.loading' | translate }}</div>
+      }
+      @for (product of store.products(); track product.id) {
+        <div class="product-card">
+          <div class="product-card-header">
+            @if (product.preview_url) {
+              <img [src]="product.preview_url.thumb" [attr.alt]="'common.preview' | translate" class="card-thumb" />
+            } @else {
+              <div class="card-no-image"><i class="pi pi-image"></i></div>
+            }
+            <div class="card-info">
+              <button type="button" class="card-name card-name-link" (click)="goToDetail(product.id)">{{ product.name }}</button>
+              <div class="card-sku">{{ product.sku }}</div>
+              <div class="card-brand">{{ product.brand_name }}</div>
+            </div>
+          </div>
+          <div class="card-details">
+            <span>{{ getTypeLabel(product.product_type) }}</span>
+            @if (product.purchase_price) {
+              <span>{{ product.purchase_price }} {{ product.currency }}</span>
+            }
+            <span>{{ product.size.size_value ?? '' }}</span>
+          </div>
+          <div class="card-actions">
+            <p-button
+              [label]="'admin.products.list.actions.view' | translate"
+              icon="pi pi-eye"
+              size="small"
+              severity="secondary"
+              (onClick)="goToDetail(product.id)"
+            />
+            <p-button
+              [label]="'common.edit' | translate"
+              icon="pi pi-pencil"
+              size="small"
+              severity="info"
+              (onClick)="goToEdit(product.id)"
+            />
+            <p-button
+              [label]="'admin.products.actions.listings' | translate"
+              icon="pi pi-list"
+              size="small"
+              severity="secondary"
+              (onClick)="goToListings(product.id)"
+            />
+            <p-button
+              [label]="'admin.products.actions.viewHistory' | translate"
+              icon="pi pi-history"
+              size="small"
+              severity="secondary"
+              (onClick)="goToHistory(product.id)"
+            />
+            <p-button
+              [label]="'common.delete' | translate"
+              icon="pi pi-trash"
+              size="small"
+              severity="danger"
+              (onClick)="confirmDelete(product)"
+            />
+          </div>
+        </div>
+      }
+      @if (!store.loading() && store.products().length === 0) {
+        <div class="empty-message">{{ 'emptyState.noProducts' | translate }}</div>
+      }
+
+      @if (store.totalPages() > 1) {
+        <div class="mobile-pagination">
+          <p-button
+            icon="pi pi-chevron-left"
+            [disabled]="store.page() <= 1"
+            severity="secondary"
+            (onClick)="goToPage(store.page() - 1)"
+          />
+          <span>{{ 'common.page' | translate }} {{ store.page() }} {{ 'common.of' | translate }} {{ store.totalPages() }}</span>
+          <p-button
+            icon="pi pi-chevron-right"
+            [disabled]="store.page() >= store.totalPages()"
+            severity="secondary"
+            (onClick)="goToPage(store.page() + 1)"
+          />
+        </div>
+      }
+    </div>
+  }
+
+  @if (viewMode === 'cards') {
+    <div class="cards-view">
+      @if (store.loading()) {
+        <div class="loading-placeholder">{{ 'common.loading' | translate }}</div>
+      } @else if (store.products().length === 0) {
+        <div class="empty-message">{{ 'emptyState.noProducts' | translate }}</div>
+      } @else {
+        <div class="products-grid">
+          @for (product of store.products(); track product.id) {
+            <button type="button" class="grid-card" (click)="goToDetail(product.id)">
+              <div class="grid-card-media">
+                @if (product.preview_url) {
+                  <img [src]="product.preview_url.thumb" [attr.alt]="'common.preview' | translate" class="grid-card-thumb" />
+                } @else {
+                  <div class="grid-card-placeholder"><i class="pi pi-image"></i></div>
+                }
+              </div>
+              <div class="grid-card-content">
+                <div class="grid-card-name">{{ product.name }}</div>
+                <div class="grid-card-size">
+                  {{ 'product.size' | translate }}: {{ product.size.size_value ?? '—' }}
+                </div>
+              </div>
+            </button>
+          }
+        </div>
+      }
+
+      <app-pagination
+        [page]="store.page()"
+        [perPage]="store.perPage()"
+        [total]="store.total()"
+        (pageChange)="onCardPageChange($event)"
+      />
+    </div>
+  }
+
+      @if (store.error()) {
+        <div class="error-banner">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ store.error() }}
+        </div>
+      }
+    </div>
+
+    <p-confirmDialog />
+    <p-toast />

@@ -1,0 +1,43 @@
+.spinner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+:host-context(.app-dark) .spinner-overlay {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.spinner-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px;
+  background: var(--app-panel-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px color-mix(in srgb, var(--p-surface-900) 16%, transparent);
+}
+
+.spinner-message {
+  font-size: 1rem;
+  color: var(--p-text-muted-color);
+  font-weight: 500;
+}
+
+.spinner-inline {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px;
+}
+
+:host ::ng-deep {
+  .spinner { width: 56px !important; height: 56px !important; }
+  .spinner-sm { width: 40px !important; height: 40px !important; }
+}

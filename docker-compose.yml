@@ -1,0 +1,79 @@
+name: sc
+
+services:
+  postgres-product:
+    extends:
+      file: ./server/product-service/assets/docker-compose.product.yml
+      service: postgres-product
+
+  postgres-user:
+    extends:
+      file: ./server/user-service/assets/docker-compose.user.yml
+      service: postgres-user
+
+  postgres-auth:
+    extends:
+      file: ./server/auth-service/assets/docker-compose.auth.yml
+      service: postgres-auth
+
+  minio:
+    extends:
+      file: ./shared/assets/docker-compose.storage.yml
+      service: minio
+
+  minio-init:
+    extends:
+      file: ./shared/assets/docker-compose.storage.yml
+      service: minio-init
+
+  sc-product-service:
+    extends:
+      file: ./server/product-service/assets/docker-compose.product.yml
+      service: product-service
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  sc-auth-service:
+    extends:
+      file: ./server/auth-service/assets/docker-compose.auth.yml
+      service: auth-service
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+  sc-user-service:
+    extends:
+      file: ./server/user-service/assets/docker-compose.user.yml
+      service: user-service
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+
+#  mvp in process...
+#  sc-client:
+#    extends:
+#      file: ./client/sc-client/assets/docker-compose.client.yml
+#      service: sc-client
+
+  nginx:
+    extends:
+      file: ./nginx/assets/docker-compose.nginx.yml
+      service: nginx
+    depends_on:
+      - sc-product-service
+      - sc-auth-service
+      - sc-user-service
+
+  sc-client-admin:
+    extends:
+      file: ./client/sc-admin/assets/docker-compose.admin.yml
+      service: sc-admin
+
+volumes:
+  postgres-product-data:
+  postgres-user-data:
+  postgres-auth-data:
+  minio-data:

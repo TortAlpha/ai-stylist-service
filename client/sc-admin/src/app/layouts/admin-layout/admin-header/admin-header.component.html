@@ -1,0 +1,47 @@
+<p-toolbar styleClass="admin-toolbar">
+  <ng-template #start>
+    <div class="toolbar-brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <div class="brand-copy">
+        <span class="toolbar-title">SC Admin</span>
+        <span class="toolbar-subtitle">{{ 'admin.panel' | translate }}</span>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template #end>
+    <div class="toolbar-actions">
+      <p-button
+        icon="pi pi-language"
+        [label]="languageToggleLabel"
+        styleClass="header-control-btn"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        [attr.aria-label]="'common.language' | translate"
+        (onClick)="langService.toggleLanguage()"
+      />
+      <p-button
+        [icon]="themeToggleIcon"
+        [label]="themeToggleLabelKey | translate"
+        styleClass="header-control-btn"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        [attr.aria-label]="themeToggleLabelKey | translate"
+        (onClick)="themeService.toggle()"
+      />
+      @if (userNameForChip) {
+        <p-chip icon="pi pi-user" [label]="userNameForChip" styleClass="user-chip" />
+      }
+      <p-button
+        icon="pi pi-sign-out"
+        severity="secondary"
+        [text]="true"
+        [rounded]="true"
+        [attr.aria-label]="'nav.logout' | translate"
+        (onClick)="authStore.logout()"
+      />
+    </div>
+  </ng-template>
+</p-toolbar>

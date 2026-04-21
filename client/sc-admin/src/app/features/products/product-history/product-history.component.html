@@ -1,0 +1,35 @@
+    <div class="history-page">
+      <nav class="breadcrumb">
+        <span class="crumb" (click)="router.navigate(['/admin/products'])" role="button" tabindex="0">Products</span>
+        <i class="pi pi-angle-right"></i>
+        @if (product()) {
+          <span class="crumb active">{{ product()!.name }}</span>
+          <i class="pi pi-angle-right"></i>
+        }
+        <span class="crumb active">History</span>
+      </nav>
+
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">
+            Product History
+            @if (product()) {
+              <span class="product-info"> — {{ product()!.name }} ({{ product()!.sku }})</span>
+            }
+          </h2>
+        </div>
+        <p-button
+          label="Back to Products"
+          icon="pi pi-arrow-left"
+          severity="secondary"
+          (onClick)="router.navigate(['/admin/products'])"
+        />
+      </div>
+
+      <div class="coming-soon">
+        <i class="pi pi-history" style="font-size: 3rem; margin-bottom: 16px;"></i>
+        <h3>Product History</h3>
+        <p>Audit trail feature is not yet implemented in the backend.</p>
+        <p>Product version: <strong>{{ product()?.version ?? '—' }}</strong></p>
+      </div>
+    </div>

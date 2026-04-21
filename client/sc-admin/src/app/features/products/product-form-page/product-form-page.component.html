@@ -1,0 +1,8 @@
+    <div class="product-form-page"></div>
+
+    <app-product-form-modal
+      [visible]="visible()"
+      [productId]="productId()"
+      (visibleChange)="onVisibleChange($event)"
+      (saved)="onSaved()"
+    />
