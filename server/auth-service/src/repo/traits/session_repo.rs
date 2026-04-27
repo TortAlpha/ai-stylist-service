@@ -14,7 +14,9 @@ pub trait SessionRepository: Send + Sync {
         device_type: &str,
     ) -> sqlx::Result<Session>;
     async fn find_by_refresh_token(&self, refresh_token: &str) -> sqlx::Result<Option<Session>>;
-    async fn find_by_previous_refresh_token(
+    /// Look up a session by its previous (rotated-out) refresh token within
+    /// the grace window and bump `last_activity_time` atomically.
+    async fn touch_by_previous_refresh_token(
         &self,
         refresh_token: &str,
     ) -> sqlx::Result<Option<Session>>;

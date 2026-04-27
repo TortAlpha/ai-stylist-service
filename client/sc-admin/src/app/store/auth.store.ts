@@ -22,6 +22,20 @@ const initialState: AuthState = {
   error: null,
 };
 
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const segment = token.split('.')[1];
+    if (!segment) return null;
+    const base64 = segment
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(segment.length / 4) * 4, '=');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
 export const AuthStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
@@ -98,8 +112,22 @@ export const AuthStore = signalStore(
           return;
         }
 
-        if (refresh !== store.refreshToken() || access !== store.accessToken()) {
-          patchState(store, { accessToken: access, refreshToken: refresh });
+        const accessChanged = access !== store.accessToken();
+        const refreshChanged = refresh !== store.refreshToken();
+        if (!accessChanged && !refreshChanged) return;
+
+        const previousSub = decodeJwtPayload(store.accessToken() ?? '')?.['sub'];
+        const nextSub = decodeJwtPayload(access ?? '')?.['sub'];
+        const userChanged = previousSub !== nextSub;
+
+        patchState(store, {
+          accessToken: access,
+          refreshToken: refresh,
+          ...(userChanged ? { user: null } : {}),
+        });
+
+        if (userChanged && access) {
+          void this.loadUser(access);
         }
       });
     },
@@ -107,22 +135,14 @@ export const AuthStore = signalStore(
     async loadUser(token?: string): Promise<void> {
       const accessToken = token ?? store.accessToken();
       if (!accessToken) return;
+      const payload = decodeJwtPayload(accessToken);
+      const userId = payload?.['sub'];
+      if (!userId) return;
       try {
-        const payloadSegment = accessToken.split('.')[1];
-        if (!payloadSegment) return;
-
-        const base64Payload = payloadSegment
-          .replace(/-/g, '+')
-          .replace(/_/g, '/')
-          .padEnd(Math.ceil(payloadSegment.length / 4) * 4, '=');
-
-        const payload = JSON.parse(atob(base64Payload));
-        const userId = payload.sub;
-        if (!userId) return;
         const user = await firstValueFrom(userApi.getUser(userId));
         patchState(store, { user });
       } catch {
-        // Token decode or user fetch failed
+        // User fetch failed
       }
     },
 
@@ -138,19 +158,10 @@ export const AuthStore = signalStore(
     },
 
     isAccessTokenExpired(token: string, leewaySeconds = 60): boolean {
-      try {
-        const payloadSegment = token.split('.')[1];
-        if (!payloadSegment) return true;
-        const base64Payload = payloadSegment
-          .replace(/-/g, '+')
-          .replace(/_/g, '/')
-          .padEnd(Math.ceil(payloadSegment.length / 4) * 4, '=');
-        const payload = JSON.parse(atob(base64Payload));
-        if (typeof payload.exp !== 'number') return true;
-        return payload.exp * 1000 - Date.now() < leewaySeconds * 1000;
-      } catch {
-        return true;
-      }
+      const payload = decodeJwtPayload(token);
+      const exp = payload?.['exp'];
+      if (typeof exp !== 'number') return true;
+      return exp * 1000 - Date.now() < leewaySeconds * 1000;
     },
 
     async initialize(): Promise<void> {

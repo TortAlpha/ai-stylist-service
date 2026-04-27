@@ -46,15 +46,17 @@ impl SessionRepository for PgSessionRepo {
             .await
     }
 
-    async fn find_by_previous_refresh_token(
+    async fn touch_by_previous_refresh_token(
         &self,
         refresh_token: &str,
     ) -> sqlx::Result<Option<Session>> {
         sqlx::query_as::<_, Session>(
             r#"
-            SELECT * FROM sessions
+            UPDATE sessions
+            SET last_activity_time = now()
             WHERE previous_refresh_token = $1
               AND previous_rotated_at > now() - INTERVAL '30 seconds'
+            RETURNING *
             "#,
         )
         .bind(refresh_token)

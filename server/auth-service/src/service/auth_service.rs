@@ -111,7 +111,7 @@ impl AuthService {
         // current pair so concurrent refreshes (rapid F5, multi-tab) don't blow up.
         if let Some(session) = self
             .session_repo
-            .find_by_previous_refresh_token(&req.refresh_token)
+            .touch_by_previous_refresh_token(&req.refresh_token)
             .await
             .map_err(|e| ServiceError::Internal(e.to_string()))?
         {

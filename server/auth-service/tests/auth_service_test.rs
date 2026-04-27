@@ -140,7 +140,7 @@ mod tests {
             .expect_find_by_refresh_token()
             .returning(|_| Ok(None));
         session_repo
-            .expect_find_by_previous_refresh_token()
+            .expect_touch_by_previous_refresh_token()
             .returning(|_| Ok(None));
 
         let svc = AuthService::new(Arc::new(session_repo), jwt, user_client);
@@ -170,7 +170,7 @@ mod tests {
             .returning(|_| Ok(None));
         let session_clone = current_session.clone();
         session_repo
-            .expect_find_by_previous_refresh_token()
+            .expect_touch_by_previous_refresh_token()
             .returning(move |_| Ok(Some(session_clone.clone())));
 
         let svc = AuthService::new(Arc::new(session_repo), jwt, user_client);
