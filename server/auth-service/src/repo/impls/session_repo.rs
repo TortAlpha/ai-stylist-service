@@ -46,6 +46,24 @@ impl SessionRepository for PgSessionRepo {
             .await
     }
 
+    async fn touch_by_previous_refresh_token(
+        &self,
+        refresh_token: &str,
+    ) -> sqlx::Result<Option<Session>> {
+        sqlx::query_as::<_, Session>(
+            r#"
+            UPDATE sessions
+            SET last_activity_time = now()
+            WHERE previous_refresh_token = $1
+              AND previous_rotated_at > now() - INTERVAL '30 seconds'
+            RETURNING *
+            "#,
+        )
+        .bind(refresh_token)
+        .fetch_optional(&self.pool)
+        .await
+    }
+
     async fn delete_by_refresh_token(&self, refresh_token: &str) -> sqlx::Result<bool> {
         let result = sqlx::query("DELETE FROM sessions WHERE refresh_token = $1")
             .bind(refresh_token)
@@ -70,7 +88,9 @@ impl SessionRepository for PgSessionRepo {
         sqlx::query_as::<_, Session>(
             r#"
             UPDATE sessions
-            SET refresh_token = $1,
+            SET previous_refresh_token = refresh_token,
+                previous_rotated_at = now(),
+                refresh_token = $1,
                 last_activity_time = now()
             WHERE refresh_token = $2
             RETURNING *

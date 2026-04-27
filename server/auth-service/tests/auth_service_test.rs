@@ -21,6 +21,8 @@ mod tests {
             id: Uuid::new_v4(),
             user_id,
             refresh_token: "test-refresh-token".into(),
+            previous_refresh_token: None,
+            previous_rotated_at: None,
             role: "user".into(),
             device_type: "test".into(),
             last_activity_time: Utc::now(),
@@ -137,6 +139,9 @@ mod tests {
         session_repo
             .expect_find_by_refresh_token()
             .returning(|_| Ok(None));
+        session_repo
+            .expect_touch_by_previous_refresh_token()
+            .returning(|_| Ok(None));
 
         let svc = AuthService::new(Arc::new(session_repo), jwt, user_client);
 
@@ -146,5 +151,35 @@ mod tests {
         let result = svc.refresh(&req).await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_refresh_grace_window_returns_current_token() {
+        let mut session_repo = MockSessionRepository::new();
+        let jwt = mock_jwt();
+        let user_client = Arc::new(UserClient::new("http://localhost:9999".into()));
+
+        let user_id = Uuid::new_v4();
+        let mut current_session = mock_session(user_id);
+        current_session.refresh_token = "current-token".into();
+        current_session.previous_refresh_token = Some("rotated-token".into());
+        current_session.previous_rotated_at = Some(Utc::now());
+
+        session_repo
+            .expect_find_by_refresh_token()
+            .returning(|_| Ok(None));
+        let session_clone = current_session.clone();
+        session_repo
+            .expect_touch_by_previous_refresh_token()
+            .returning(move |_| Ok(Some(session_clone.clone())));
+
+        let svc = AuthService::new(Arc::new(session_repo), jwt, user_client);
+        let req = RefreshRequest {
+            refresh_token: "rotated-token".into(),
+        };
+        let result = svc.refresh(&req).await.unwrap();
+
+        assert_eq!(result.refresh_token, "current-token");
+        assert!(!result.access_token.is_empty());
     }
 }
