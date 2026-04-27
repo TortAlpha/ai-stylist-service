@@ -80,29 +80,52 @@ impl AuthService {
 
     pub async fn refresh(&self, req: &RefreshRequest) -> Result<AuthResponse, ServiceError> {
         debug!("service:auth refresh");
-        let session = self
+
+        if let Some(session) = self
             .session_repo
             .find_by_refresh_token(&req.refresh_token)
             .await
             .map_err(|e| ServiceError::Internal(e.to_string()))?
-            .ok_or_else(|| ServiceError::Unauthorized("Invalid refresh token".into()))?;
+        {
+            let new_refresh = Self::generate_refresh_token();
+            let new_access = self
+                .jwt_manager
+                .encode_access_token(session.user_id, &session.role)?;
 
-        let new_refresh = Self::generate_refresh_token();
-        let new_access = self
-            .jwt_manager
-            .encode_access_token(session.user_id, &session.role)?;
+            if self
+                .session_repo
+                .update_refresh_token(&req.refresh_token, &new_refresh)
+                .await
+                .map_err(|e| ServiceError::Internal(e.to_string()))?
+                .is_some()
+            {
+                info!(user_id = %session.user_id, role = %session.role, "service:auth refresh succeeded");
+                return Ok(AuthResponse {
+                    access_token: new_access,
+                    refresh_token: new_refresh,
+                });
+            }
+        }
 
-        self.session_repo
-            .update_refresh_token(&req.refresh_token, &new_refresh)
+        // Grace fallback: token was rotated within the grace window — return the
+        // current pair so concurrent refreshes (rapid F5, multi-tab) don't blow up.
+        if let Some(session) = self
+            .session_repo
+            .find_by_previous_refresh_token(&req.refresh_token)
             .await
             .map_err(|e| ServiceError::Internal(e.to_string()))?
-            .ok_or_else(|| ServiceError::Unauthorized("Invalid refresh token".into()))?;
+        {
+            let new_access = self
+                .jwt_manager
+                .encode_access_token(session.user_id, &session.role)?;
+            info!(user_id = %session.user_id, "service:auth refresh grace hit");
+            return Ok(AuthResponse {
+                access_token: new_access,
+                refresh_token: session.refresh_token,
+            });
+        }
 
-        info!(user_id = %session.user_id, role = %session.role, "service:auth refresh succeeded");
-        Ok(AuthResponse {
-            access_token: new_access,
-            refresh_token: new_refresh,
-        })
+        Err(ServiceError::Unauthorized("Invalid refresh token".into()))
     }
 
     pub async fn logout(&self, refresh_token: &str) -> Result<(), ServiceError> {
