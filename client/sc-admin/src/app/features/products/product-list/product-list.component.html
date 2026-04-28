@@ -346,7 +346,7 @@
             <button type="button" class="grid-card" (click)="goToDetail(product.id)">
               <div class="grid-card-media">
                 @if (product.preview_url) {
-                  <img [src]="product.preview_url.thumb" [attr.alt]="'common.preview' | translate" class="grid-card-thumb" />
+                  <img [src]="product.preview_url.medium" [attr.alt]="'common.preview' | translate" class="grid-card-thumb" loading="lazy" decoding="async" />
                 } @else {
                   <div class="grid-card-placeholder"><i class="pi pi-image"></i></div>
                 }
@@ -366,6 +366,7 @@
         [page]="store.page()"
         [perPage]="store.perPage()"
         [total]="store.total()"
+        [rowsPerPageOptions]="[12, 18, 36, 50]"
         (pageChange)="onCardPageChange($event)"
       />
     </div>

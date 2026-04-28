@@ -167,6 +167,10 @@ export class ProductListComponent implements OnInit, OnDestroy {
     ];
   }
 
+  private defaultPerPage(view: 'table' | 'cards' = this.viewMode): number {
+    return view === 'cards' ? 18 : 20;
+  }
+
   private async initializeFromQuery(): Promise<void> {
     const { page, perPage } = this.applyStateFromQuery();
 
@@ -255,7 +259,12 @@ export class ProductListComponent implements OnInit, OnDestroy {
   }
 
   toggleViewMode(): void {
+    const prevDefault = this.defaultPerPage();
     this.viewMode = this.viewMode === 'table' ? 'cards' : 'table';
+    const nextDefault = this.defaultPerPage();
+    if (this.store.perPage() === prevDefault && prevDefault !== nextDefault) {
+      void this.store.setPage(1, nextDefault);
+    }
     this.syncQueryParams();
   }
 
@@ -301,10 +310,11 @@ export class ProductListComponent implements OnInit, OnDestroy {
     this.viewMode = view === 'table' ? 'table' : 'cards';
 
     const pageNum = page ? Number(page) : 1;
-    const perPageNum = perPage ? Number(perPage) : this.store.perPage();
+    const fallbackPerPage = this.defaultPerPage();
+    const perPageNum = perPage ? Number(perPage) : fallbackPerPage;
     const normalizedPage = Number.isFinite(pageNum) && pageNum > 0 ? pageNum : 1;
     const normalizedPerPage =
-      Number.isFinite(perPageNum) && perPageNum > 0 ? perPageNum : this.store.perPage();
+      Number.isFinite(perPageNum) && perPageNum > 0 ? perPageNum : fallbackPerPage;
 
     return { page: normalizedPage, perPage: normalizedPerPage };
   }
@@ -324,7 +334,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
         sort_by: this.sortBy !== 'created_at' ? this.sortBy : null,
         sort_order: this.sortOrder !== 'desc' ? this.sortOrder : null,
         page: currentPage > 1 ? currentPage : null,
-        per_page: currentPerPage !== 20 ? currentPerPage : null,
+        per_page: currentPerPage !== this.defaultPerPage() ? currentPerPage : null,
         view: this.viewMode !== 'cards' ? this.viewMode : null,
       },
       replaceUrl: true,

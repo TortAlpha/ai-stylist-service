@@ -12,6 +12,7 @@ export class PaginationComponent {
   @Input() page = 1;
   @Input() perPage = 20;
   @Input() total = 0;
+  @Input() rowsPerPageOptions: number[] = [10, 20, 50];
   @Output() pageChange = new EventEmitter<{ page: number; perPage: number }>();
 
   onPageChange(event: PaginatorState): void {
