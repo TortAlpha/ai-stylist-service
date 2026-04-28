@@ -4,8 +4,15 @@
   } @else if (product(); as p) {
     <header class="detail-hero p-section">
       <div class="hero-main">
-        @if (p.preview_url) {
-          <img class="hero-thumb" [src]="p.preview_url.thumb" [alt]="p.name" />
+        @if (p.preview_url; as preview) {
+          <p-image
+            styleClass="hero-thumb"
+            imageClass="hero-thumb-img"
+            [src]="preview.medium"
+            [previewImageSrc]="preview.full"
+            [alt]="p.name"
+            [preview]="true"
+          />
         } @else {
           <div class="hero-thumb hero-thumb--empty" aria-hidden="true">
             <i class="pi pi-image"></i>
@@ -135,7 +142,13 @@
         <div class="image-grid">
           @for (url of p.image_urls; track url.full) {
             <div class="image-item" [class.is-preview]="url.full === p.preview_url?.full">
-              <img [src]="url.medium" [alt]="p.name" />
+              <p-image
+                [src]="url.medium"
+                [previewImageSrc]="url.full"
+                [alt]="p.name"
+                [preview]="true"
+                imageClass="image-thumb"
+              />
               @if (url.full === p.preview_url?.full) {
                 <span class="preview-badge">{{ 'common.preview' | translate }}</span>
               }
