@@ -264,6 +264,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
     const nextDefault = this.defaultPerPage();
     if (this.store.perPage() === prevDefault && prevDefault !== nextDefault) {
       void this.store.setPage(1, nextDefault);
+      this.syncQueryParams(1, nextDefault);
+      return;
     }
     this.syncQueryParams();
   }
