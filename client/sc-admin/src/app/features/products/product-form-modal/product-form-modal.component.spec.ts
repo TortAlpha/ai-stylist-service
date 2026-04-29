@@ -34,6 +34,15 @@ const bagsCategory = {
   size_group: 'dimensions',
 };
 
+const jewelryCategory = {
+  id: 30,
+  name: 'Rings',
+  parent_id: null,
+  gender: 'unisex',
+  product_type: 'jewelry',
+  size_group: 'ring',
+};
+
 const brandAcme: Brand = { id: 1, name: 'Acme', code: 'ACME', tier: 'premium', country: null, created_at: NOW };
 
 function arrayRes<T>(data: T[]) {
@@ -121,6 +130,14 @@ describe('ProductFormModalComponent', () => {
     component.onCategoryChange();
     expect(component['selectedProductType']()).toBe('bags');
     expect(component['selectedSizeGroup']()).toBe('dimensions');
+  });
+
+  it('does not render a separate type details section for jewelry', () => {
+    component['selectedProductType'].set('jewelry');
+    expect(component['showSeparateTypeDetailsSection']()).toBe(false);
+
+    component['selectedProductType'].set('bags');
+    expect(component['showSeparateTypeDetailsSection']()).toBe(true);
   });
 
   it('categoryTreeNodes allows leaf categories only', () => {
@@ -215,6 +232,33 @@ describe('ProductFormModalComponent', () => {
     expect(body.details.condition).toBe('excellent');
     expect(body.details.size.size_value).toBe('M');
     expect(body.details.type_details).toEqual({ product_type: 'clothing', fit: 'regular' });
+  });
+
+  it('submit (create) still sends jewelry type_details from inline details fields', async () => {
+    component.brands = [brandAcme];
+    component.categories = [jewelryCategory] as any;
+    component.form.patchValue({
+      name: 'Ring',
+      brand_id: 1,
+      category_id: 30,
+    });
+    component.form.get('details')?.patchValue({ condition: 'excellent' });
+    component['selectedProductType'].set('jewelry');
+    component.form.get('type_details')?.patchValue({
+      metal: 'gold',
+      stone: 'diamond',
+      clasp_type: 'lobster',
+    });
+
+    await component.onSubmit();
+
+    const body = productApi.createProduct.mock.calls[0][0];
+    expect(body.details.type_details).toEqual({
+      product_type: 'jewelry',
+      metal: 'gold',
+      stone: 'diamond',
+      clasp_type: 'lobster',
+    });
   });
 
   it('submit (create) falls back to accessories type_details when no product type', async () => {
