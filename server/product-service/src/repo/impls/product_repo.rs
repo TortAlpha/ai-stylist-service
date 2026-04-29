@@ -407,26 +407,6 @@ impl ProductRepository for PgProductRepo {
     }
 
     async fn soft_delete(&self, id: Uuid, expected_version: i32) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query(
-            r#"
-            UPDATE product
-            SET is_deleted = true, deleted_at = now()
-            WHERE id = $1 AND version = $2 AND is_deleted = false
-            "#,
-        )
-        .bind(id)
-        .bind(expected_version)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(result.rows_affected() > 0)
-    }
-
-    async fn soft_delete_with_photo_cleanup(
-        &self,
-        id: Uuid,
-        expected_version: i32,
-    ) -> Result<bool, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 
         let result = sqlx::query(

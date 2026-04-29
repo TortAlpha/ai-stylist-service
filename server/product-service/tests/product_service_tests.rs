@@ -260,17 +260,6 @@ impl ProductRepository for ProductRepoStub {
         }
     }
 
-    async fn soft_delete_with_photo_cleanup(
-        &self,
-        _id: Uuid,
-        _expected_version: i32,
-    ) -> Result<bool, sqlx::Error> {
-        match self.soft_delete_result {
-            Some(v) => Ok(v),
-            None => panic!("unexpected call to soft_delete_with_photo_cleanup"),
-        }
-    }
-
     async fn filter_options(
         &self,
         _query: &FilterOptionsQuery,
