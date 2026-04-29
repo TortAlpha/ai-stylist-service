@@ -36,8 +36,16 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                 web::post().to(product_photo_handler::upload_images),
             )
             .route(
+                "/{id}/images/{image_id}",
+                web::delete().to(product_photo_handler::delete_image),
+            )
+            .route(
                 "/{id}/preview",
                 web::post().to(product_photo_handler::upload_preview),
+            )
+            .route(
+                "/{id}/preview",
+                web::delete().to(product_photo_handler::delete_preview),
             ),
     );
 }

@@ -18,7 +18,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { ProductApiService } from '../../../core/services/product-api.service';
-import { AdminProductDTO, ImageVariantUrls } from '../../../core/models/product.model';
+import { AdminProductDTO, ProductImageUrls } from '../../../core/models/product.model';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 
 @Component({
@@ -56,9 +56,12 @@ export class ProductImagesComponent implements OnInit {
 
   protected readonly galleryImages = computed(() => {
     const p = this.product();
-    if (!p) return [] as ImageVariantUrls[];
+    if (!p) return [] as ProductImageUrls[];
     return p.image_urls;
   });
+
+  protected readonly deletingImageIds = signal<Set<number>>(new Set());
+  protected readonly deletingPreview = signal(false);
 
   private productId: string | null = null;
 
@@ -129,14 +132,29 @@ export class ProductImagesComponent implements OnInit {
     });
   }
 
-  protected confirmImageDelete(url: ImageVariantUrls): void {
+  protected confirmImageDelete(image: ProductImageUrls): void {
     this.confirmationService.confirm({
       header: this.translate.instant('admin.products.images.deleteImage'),
       message: this.translate.instant('admin.products.images.confirmDeleteImage'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.mockDeleteImage(url),
+      accept: () => void this.deleteImage(image),
     });
+  }
+
+  protected confirmPreviewDelete(): void {
+    if (!this.product()?.preview_url) return;
+    this.confirmationService.confirm({
+      header: this.translate.instant('admin.products.images.deletePreview'),
+      message: this.translate.instant('admin.products.images.confirmDeletePreview'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => void this.deletePreview(),
+    });
+  }
+
+  protected isDeletingImage(image: ProductImageUrls): boolean {
+    return this.deletingImageIds().has(image.id);
   }
 
   protected async refreshGallery(): Promise<void> {
@@ -147,12 +165,53 @@ export class ProductImagesComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  private mockDeleteImage(_url: ImageVariantUrls): void {
-    this.messageService.add({
-      severity: 'info',
-      summary: this.translate.instant('admin.products.images.mockNotImplemented.summary'),
-      detail: this.translate.instant('admin.products.images.mockNotImplemented.detail'),
-    });
+  private async deleteImage(image: ProductImageUrls): Promise<void> {
+    if (!this.productId) return;
+    if (this.deletingImageIds().has(image.id)) return;
+    this.markImageDeleting(image.id, true);
+    try {
+      const res = await firstValueFrom(this.productApi.deleteImage(this.productId, image.id));
+      if (res.success) {
+        this.toastSuccess('admin.products.images.imageDeleted.summary', 'admin.products.images.imageDeleted.detail');
+        await this.loadProduct();
+      } else {
+        this.toastError('admin.products.images.deleteFailed.summary', res.error);
+      }
+    } catch (err: any) {
+      this.toastError('admin.products.images.deleteFailed.summary', err?.error?.error);
+    } finally {
+      this.markImageDeleting(image.id, false);
+      this.cdr.markForCheck();
+    }
+  }
+
+  private async deletePreview(): Promise<void> {
+    if (!this.productId || this.deletingPreview()) return;
+    this.deletingPreview.set(true);
+    try {
+      const res = await firstValueFrom(this.productApi.deletePreview(this.productId));
+      if (res.success) {
+        this.toastSuccess('admin.products.images.previewDeleted.summary', 'admin.products.images.previewDeleted.detail');
+        await this.loadProduct();
+      } else {
+        this.toastError('admin.products.images.deleteFailed.summary', res.error);
+      }
+    } catch (err: any) {
+      this.toastError('admin.products.images.deleteFailed.summary', err?.error?.error);
+    } finally {
+      this.deletingPreview.set(false);
+      this.cdr.markForCheck();
+    }
+  }
+
+  private markImageDeleting(id: number, deleting: boolean): void {
+    const next = new Set(this.deletingImageIds());
+    if (deleting) {
+      next.add(id);
+    } else {
+      next.delete(id);
+    }
+    this.deletingImageIds.set(next);
   }
 
   private async loadProduct(): Promise<void> {

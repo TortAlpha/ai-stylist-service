@@ -409,6 +409,7 @@ struct StorageStub {
     image_keys: Vec<String>,
     preview_keys: Vec<String>,
     put_calls: Mutex<Vec<String>>,
+    delete_calls: Mutex<Vec<String>>,
 }
 
 impl StorageStub {
@@ -417,6 +418,7 @@ impl StorageStub {
             image_keys,
             preview_keys,
             put_calls: Mutex::new(vec![]),
+            delete_calls: Mutex::new(vec![]),
         }
     }
 
@@ -424,6 +426,13 @@ impl StorageStub {
         self.put_calls
             .lock()
             .expect("put_calls mutex poisoned")
+            .clone()
+    }
+
+    fn delete_calls(&self) -> Vec<String> {
+        self.delete_calls
+            .lock()
+            .expect("delete_calls mutex poisoned")
             .clone()
     }
 }
@@ -448,7 +457,11 @@ impl ImageStorage for StorageStub {
         Ok(())
     }
 
-    async fn delete_prefix(&self, _bucket: &str, _prefix: &str) -> Result<(), StorageError> {
+    async fn delete_prefix(&self, bucket: &str, prefix: &str) -> Result<(), StorageError> {
+        self.delete_calls
+            .lock()
+            .expect("delete_calls mutex poisoned")
+            .push(format!("{bucket}:{prefix}"));
         Ok(())
     }
 
@@ -492,10 +505,22 @@ fn build_product_service(
     product_repo: Arc<dyn ProductRepository>,
     category_repo: Arc<dyn CategoryRepository>,
 ) -> ProductService {
+    build_product_service_with_storage(
+        product_repo,
+        category_repo,
+        Arc::new(StorageStub::default()),
+    )
+}
+
+fn build_product_service_with_storage(
+    product_repo: Arc<dyn ProductRepository>,
+    category_repo: Arc<dyn CategoryRepository>,
+    storage: Arc<StorageStub>,
+) -> ProductService {
     let photo_repo: Arc<dyn ProductPhotoRepository> =
         Arc::new(ProductPhotoRepoStub::never_called());
-    let storage: Arc<dyn ImageStorage> = Arc::new(StorageStub::default());
-    let photo_service = build_photo_service(photo_repo, storage);
+    let storage_trait: Arc<dyn ImageStorage> = storage;
+    let photo_service = build_photo_service(photo_repo, storage_trait);
 
     ProductService::new(lazy_pool(), product_repo, category_repo, photo_service)
 }
@@ -721,29 +746,54 @@ async fn get_product_previews_by_query_admin_returns_paginated() {
 
 #[tokio::test]
 async fn soft_delete_ok() {
+    let product_id = Uuid::new_v4();
     let svc = build_product_service(
         Arc::new(ProductRepoStub::with_soft_delete(true)),
         Arc::new(CategoryRepoStub::new()),
     );
 
-    svc.soft_delete(Uuid::new_v4(), 1)
+    svc.soft_delete(product_id, 1)
         .await
         .expect("soft_delete should succeed");
 }
 
 #[tokio::test]
+async fn soft_delete_removes_product_images_only() {
+    let product_id = Uuid::new_v4();
+    let storage = Arc::new(StorageStub::default());
+    let svc = build_product_service_with_storage(
+        Arc::new(ProductRepoStub::with_soft_delete(true)),
+        Arc::new(CategoryRepoStub::new()),
+        storage.clone(),
+    );
+
+    svc.soft_delete(product_id, 1)
+        .await
+        .expect("soft_delete should succeed");
+
+    assert_eq!(
+        storage.delete_calls(),
+        vec![format!("images-bucket:products/{product_id}/")]
+    );
+}
+
+#[tokio::test]
 async fn soft_delete_stale_version() {
-    let svc = build_product_service(
+    let product_id = Uuid::new_v4();
+    let storage = Arc::new(StorageStub::default());
+    let svc = build_product_service_with_storage(
         Arc::new(ProductRepoStub::with_soft_delete(false)),
         Arc::new(CategoryRepoStub::new()),
+        storage.clone(),
     );
 
     let err = svc
-        .soft_delete(Uuid::new_v4(), 1)
+        .soft_delete(product_id, 1)
         .await
         .expect_err("stale delete should return conflict error");
 
     assert!(matches!(err, ServiceError::StaleVersion));
+    assert!(storage.delete_calls().is_empty());
 }
 
 #[tokio::test]

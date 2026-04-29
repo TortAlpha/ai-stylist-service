@@ -19,6 +19,8 @@ use utoipa::OpenApi;
         // Product Photos
         crate::handler::product_photo_handler::upload_images,
         crate::handler::product_photo_handler::upload_preview,
+        crate::handler::product_photo_handler::delete_image,
+        crate::handler::product_photo_handler::delete_preview,
         // Brands
         crate::handler::brand_handler::list_brands,
         crate::handler::brand_handler::search_brands,
@@ -53,6 +55,7 @@ use utoipa::OpenApi;
     components(schemas(
         // Response DTOs
         crate::domain::utils::mappers::ImageVariantUrls,
+        crate::domain::utils::mappers::ProductImageUrls,
         crate::domain::response_dto::product::ProductPreviewResponse,
         crate::domain::response_dto::product::AdminProductDTO,
         crate::domain::response_dto::product::ProductFilterOptions,

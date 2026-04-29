@@ -85,3 +85,52 @@ pub async fn upload_preview(
         }))),
     )
 }
+
+#[utoipa::path(
+    delete,
+    path = "/api/admin/products/{id}/images/{image_id}",
+    tag = "Product Photos",
+    params(
+        ("id" = Uuid, Path, description = "Product UUID"),
+        ("image_id" = usize, Path, description = "Image storage index"),
+    ),
+    responses(
+        (status = 200, description = "Image deleted"),
+        (status = 404, description = "Product or image not found"),
+    ),
+    security(("bearer" = []))
+)]
+pub async fn delete_image(
+    _admin: AdminUser,
+    path: web::Path<(Uuid, usize)>,
+    service: web::Data<ProductPhotoService>,
+) -> Result<HttpResponse, ServiceError> {
+    let (product_id, image_id) = path.into_inner();
+    debug!(%product_id, image_id, "delete image request");
+    service.delete_image(product_id, image_id).await?;
+    info!(%product_id, image_id, "image deleted");
+    Ok(HttpResponse::Ok().json(ApiResponse::ok(())))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/admin/products/{id}/preview",
+    tag = "Product Photos",
+    params(("id" = Uuid, Path, description = "Product UUID")),
+    responses(
+        (status = 200, description = "Preview deleted"),
+        (status = 404, description = "Product not found"),
+    ),
+    security(("bearer" = []))
+)]
+pub async fn delete_preview(
+    _admin: AdminUser,
+    id: web::Path<Uuid>,
+    service: web::Data<ProductPhotoService>,
+) -> Result<HttpResponse, ServiceError> {
+    let product_id = id.into_inner();
+    debug!(%product_id, "delete preview request");
+    service.delete_preview(product_id).await?;
+    info!(%product_id, "preview deleted");
+    Ok(HttpResponse::Ok().json(ApiResponse::ok(())))
+}
