@@ -554,6 +554,16 @@
             [disabled]="saving()"
           />
         }
+        @if (!productId()) {
+          <p-button
+            [label]="'admin.products.form.actions.clearForm' | translate"
+            icon="pi pi-eraser"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="clearCreateForm()"
+            [disabled]="saving()"
+          />
+        }
         <p-button
           [label]="productId()
             ? ('admin.products.form.actions.saveChanges' | translate)
