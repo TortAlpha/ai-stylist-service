@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { TreeNode } from 'primeng/api';
 import { of } from 'rxjs';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { ProductFormModalComponent } from './product-form-modal.component';
@@ -37,6 +38,26 @@ const brandAcme: Brand = { id: 1, name: 'Acme', code: 'ACME', tier: 'premium', c
 
 function arrayRes<T>(data: T[]) {
   return of({ success: true, data, error: null });
+}
+
+function collectSelectableCategoryIds(nodes: TreeNode[]): number[] {
+  return nodes.flatMap(node => [
+    ...((node.data as { id?: number } | undefined)?.id ? [(node.data as { id: number }).id] : []),
+    ...collectSelectableCategoryIds(node.children ?? []),
+  ]);
+}
+
+function findCategoryNode(nodes: TreeNode[], id: number): TreeNode | null {
+  for (const node of nodes) {
+    if ((node.data as { id?: number } | undefined)?.id === id) {
+      return node;
+    }
+    const child = findCategoryNode(node.children ?? [], id);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
 }
 
 describe('ProductFormModalComponent', () => {
@@ -102,15 +123,55 @@ describe('ProductFormModalComponent', () => {
     expect(component['selectedSizeGroup']()).toBe('dimensions');
   });
 
-  it('categoryOptions filters leaf categories only', () => {
+  it('categoryTreeNodes allows leaf categories only', () => {
     component.categories = [
       { ...clothingCategory, id: 1, parent_id: null, name: 'Root' },
       { ...clothingCategory, id: 2, parent_id: 1, name: 'Leaf' },
     ] as any;
     component.form.get('category_id')?.setValue(null);
 
-    const options = component.categoryOptions;
-    expect(options.map(o => o.value)).toEqual([2]);
+    expect(collectSelectableCategoryIds(component.categoryTreeNodes)).toEqual([2]);
+  });
+
+  it('category tree selection writes category_id and derived signals', () => {
+    component.categories = [clothingCategory, bagsCategory] as any;
+
+    const node = findCategoryNode(component.categoryTreeNodes, 20);
+    component.onCategoryNodeChange(node);
+
+    expect(component.form.get('category_id')?.value).toBe(20);
+    expect(component['selectedProductType']()).toBe('bags');
+    expect(component['selectedSizeGroup']()).toBe('dimensions');
+  });
+
+  it('category tree hides root category when it duplicates product type', () => {
+    component.categories = [
+      {
+        id: 1,
+        name: 'Bags',
+        parent_id: null,
+        gender: 'female',
+        product_type: 'bags',
+        size_group: 'dimensions',
+      },
+      {
+        id: 2,
+        name: 'Crossbody Bags',
+        parent_id: 1,
+        gender: 'female',
+        product_type: 'bags',
+        size_group: 'dimensions',
+      },
+    ] as any;
+
+    const typeNode = findCategoryNode(component.categoryTreeNodes, 2);
+    expect(typeNode?.label).toBe('Crossbody Bags');
+    expect(component.categoryTreeNodes[0].children?.[0].children?.map(node => node.label)).toEqual([
+      'Crossbody Bags',
+    ]);
+
+    component.form.get('category_id')?.setValue(2);
+    expect(component.selectedCategoryPath).toBe('Female / Bags / Crossbody Bags');
   });
 
   it('onBrandCreated appends to brands, sorts, and auto-selects', () => {

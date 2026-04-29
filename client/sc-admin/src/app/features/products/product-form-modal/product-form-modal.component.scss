@@ -141,6 +141,12 @@
   font-weight: 500;
 }
 
+.field-help {
+  color: var(--p-text-secondary-color);
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
 .no-extra-fields {
   margin: 0;
   grid-column: 1 / -1;
@@ -167,18 +173,21 @@
 
 .field ::ng-deep .p-inputnumber,
 .field ::ng-deep .p-select,
+.field ::ng-deep .p-treeselect,
 .field ::ng-deep .p-multiselect {
   width: 100%;
 }
 
 .field ::ng-deep .p-inputnumber-input,
 .field ::ng-deep .p-select-label,
+.field ::ng-deep .p-treeselect-label,
 .field ::ng-deep .p-multiselect-label {
   min-height: 2.35rem;
   border-radius: 10px;
 }
 
 .field ::ng-deep .p-select,
+.field ::ng-deep .p-treeselect,
 .field ::ng-deep .p-multiselect,
 .field ::ng-deep .p-inputnumber-input {
   border-color: var(--app-border);

@@ -83,18 +83,22 @@
 
           <div class="field">
             <label for="category_id" class="required-label">{{ 'product.category' | translate }}</label>
-            <p-select
-              id="category_id"
-              formControlName="category_id"
-              [options]="categoryOptions"
-              optionLabel="label"
-              optionValue="value"
+            <p-treeSelect
+              inputId="category_id"
+              [options]="categoryTreeNodes"
+              [ngModel]="selectedCategoryNode"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onCategoryNodeChange($event)"
+              selectionMode="single"
               [placeholder]="'admin.products.form.placeholders.selectCategory' | translate"
               [filter]="true"
               [filterPlaceholder]="'admin.products.form.placeholders.searchCategories' | translate"
-              styleClass="w-full"
-              (onChange)="onCategoryChange()"
+              [showClear]="true"
+              containerStyleClass="w-full"
             />
+            @if (selectedCategoryPath) {
+              <small class="field-help">{{ selectedCategoryPath }}</small>
+            }
             @if (form.get('category_id')?.invalid && form.get('category_id')?.touched) {
               <small class="error-text">{{ 'admin.products.form.validation.categoryRequired' | translate }}</small>
             }
