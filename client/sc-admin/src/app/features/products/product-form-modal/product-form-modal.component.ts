@@ -27,7 +27,7 @@ import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { MessageService, TreeNode } from 'primeng/api';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { Subscription, firstValueFrom } from 'rxjs';
+import { Subscription, debounceTime, firstValueFrom } from 'rxjs';
 import { ProductApiService } from '../../../core/services/product-api.service';
 import { BrandApiService } from '../../../core/services/brand-api.service';
 import { CategoryApiService } from '../../../core/services/category-api.service';
@@ -105,7 +105,10 @@ export class ProductFormModalComponent implements OnDestroy {
   protected readonly selectedProductType = signal<string | null>(null);
   protected readonly selectedSizeGroup = signal<string | null>(null);
   protected readonly brandModalVisible = signal(false);
+  protected readonly hasCreateDraft = signal(false);
   private langChangeSub: Subscription | null = null;
+  private createDraftSub: Subscription | null = null;
+  private readonly createDraftStorageKey = 'admin.product.create.draft.v1';
 
   statuses: Array<{ label: string; value: string }> = [];
 
@@ -315,15 +318,23 @@ export class ProductFormModalComponent implements OnDestroy {
     effect(() => {
       const isVisible = this.visible();
       if (isVisible) {
+        const pid = this.productId();
+
+        this.stopCreateDraftAutosave();
         this.staleVersionError.set(false);
         this.selectedProductType.set(null);
         this.selectedSizeGroup.set(null);
         this.selectedCategoryNode = null;
         this.existingProduct = null;
         this.buildForm();
+        if (!pid) {
+          this.restoreCreateDraft();
+          this.startCreateDraftAutosave();
+        } else {
+          this.hasCreateDraft.set(false);
+        }
         this.loadDropdownData();
 
-        const pid = this.productId();
         if (pid) {
           this.loadProduct(pid);
         }
@@ -333,6 +344,7 @@ export class ProductFormModalComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.langChangeSub?.unsubscribe();
+    this.stopCreateDraftAutosave();
   }
 
   private buildLocalizedOptions(): void {
@@ -410,6 +422,52 @@ export class ProductFormModalComponent implements OnDestroy {
       vibe_tag_ids: [[]],
       season_ids: [[]],
     });
+  }
+
+  private getEmptyFormValue(): Record<string, unknown> {
+    return {
+      name: '',
+      brand_id: null,
+      category_id: null,
+      status: 'intake',
+      purchase_price: '',
+      currency: 'RSD',
+      purchase_location_id: null,
+      ai_notes: '',
+      details: {
+        condition: '',
+        material: '',
+        color: '',
+        year_of_release: null,
+        is_vintage: false,
+        is_collab: false,
+        collab_name: '',
+        is_limited_edition: false,
+        special_notes: '',
+      },
+      size: {
+        size_value: '',
+        size_value2: '',
+        size_system: null,
+        measurement_cm: '',
+      },
+      type_details: {
+        fit: null,
+        shoe_width: null,
+        insole_length_cm: '',
+        width_cm: '',
+        height_cm: '',
+        depth_cm: '',
+        handle_type: null,
+        bag_size_label: '',
+        metal: '',
+        stone: '',
+        clasp_type: '',
+      },
+      style_tag_ids: [],
+      vibe_tag_ids: [],
+      season_ids: [],
+    };
   }
 
   onCategoryNodeChange(node: TreeNode | null): void {
@@ -514,8 +572,12 @@ export class ProductFormModalComponent implements OnDestroy {
       if (purchaseLocationsRes.success && purchaseLocationsRes.data) {
         this.purchaseLocations = purchaseLocationsRes.data;
       }
-      this.syncDerivedSelectionsFromProduct();
-      this.syncSelectedCategoryNode();
+      if (this.productId()) {
+        this.syncDerivedSelectionsFromProduct();
+        this.syncSelectedCategoryNode();
+      } else {
+        this.syncCreateDraftCategorySelection();
+      }
       this.cdr.markForCheck();
     } catch {
       // Silently fail -- user will see empty dropdowns
@@ -750,6 +812,8 @@ export class ProductFormModalComponent implements OnDestroy {
           return;
         }
 
+        this.stopCreateDraftAutosave();
+        this.clearCreateDraft();
         this.saved.emit();
       }
     } catch (err: any) {
@@ -791,6 +855,26 @@ export class ProductFormModalComponent implements OnDestroy {
     this.visibleChange.emit(false);
   }
 
+  clearCreateForm(): void {
+    if (this.productId()) return;
+
+    this.stopCreateDraftAutosave();
+    this.form.reset(this.getEmptyFormValue(), { emitEvent: false });
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    this.selectedProductType.set(null);
+    this.selectedSizeGroup.set(null);
+    this.selectedCategoryNode = null;
+    this.clearCreateDraft();
+    this.startCreateDraftAutosave();
+    this.cdr.markForCheck();
+  }
+
+  private clearCreateDraft(): void {
+    this.getDraftStorage()?.removeItem(this.createDraftStorageKey);
+    this.hasCreateDraft.set(false);
+  }
+
   onManageImages(): void {
     const id = this.productId();
     if (!id) return;
@@ -804,5 +888,79 @@ export class ProductFormModalComponent implements OnDestroy {
   private t(key: string, fallback?: string, params?: Record<string, string | number>): string {
     const translated = this.translate.instant(key, params);
     return translated === key ? (fallback ?? key) : translated;
+  }
+
+  private startCreateDraftAutosave(): void {
+    this.stopCreateDraftAutosave();
+    this.hasCreateDraft.set(this.createDraftExists());
+    this.createDraftSub = this.form.valueChanges
+      .pipe(debounceTime(300))
+      .subscribe(() => this.saveCreateDraft());
+  }
+
+  private stopCreateDraftAutosave(): void {
+    this.createDraftSub?.unsubscribe();
+    this.createDraftSub = null;
+  }
+
+  private restoreCreateDraft(): void {
+    const storage = this.getDraftStorage();
+    if (!storage) return;
+
+    const rawDraft = storage.getItem(this.createDraftStorageKey);
+    if (!rawDraft) {
+      this.hasCreateDraft.set(false);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawDraft) as { value?: unknown };
+      if (parsed.value && typeof parsed.value === 'object') {
+        this.form.patchValue(parsed.value, { emitEvent: false });
+        this.hasCreateDraft.set(true);
+      }
+    } catch {
+      storage.removeItem(this.createDraftStorageKey);
+      this.hasCreateDraft.set(false);
+    }
+  }
+
+  private saveCreateDraft(): void {
+    if (this.productId()) return;
+
+    const storage = this.getDraftStorage();
+    if (!storage) return;
+
+    storage.setItem(
+      this.createDraftStorageKey,
+      JSON.stringify({
+        version: 1,
+        savedAt: new Date().toISOString(),
+        value: this.form.getRawValue(),
+      }),
+    );
+    this.hasCreateDraft.set(true);
+  }
+
+  private createDraftExists(): boolean {
+    return this.getDraftStorage()?.getItem(this.createDraftStorageKey) !== null;
+  }
+
+  private getDraftStorage(): Storage | null {
+    try {
+      return typeof localStorage === 'undefined' ? null : localStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  private syncCreateDraftCategorySelection(): void {
+    const categoryId = this.form.get('category_id')?.value;
+    if (categoryId) {
+      this.onCategoryChange(false);
+      return;
+    }
+
+    this.syncSelectedCategoryNode();
   }
 }

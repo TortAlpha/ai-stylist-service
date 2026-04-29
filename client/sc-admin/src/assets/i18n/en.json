@@ -307,6 +307,7 @@
         },
         "actions": {
           "saveChanges": "Save Changes",
+          "clearForm": "Clear Form",
           "createProduct": "Create Product"
         },
         "validation": {

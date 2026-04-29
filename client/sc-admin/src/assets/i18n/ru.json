@@ -307,6 +307,7 @@
         },
         "actions": {
           "saveChanges": "Сохранить изменения",
+          "clearForm": "Очистить форму",
           "createProduct": "Создать товар"
         },
         "validation": {
