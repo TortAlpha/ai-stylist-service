@@ -267,6 +267,15 @@ export class ProductFormModalComponent implements OnDestroy {
     return nodes;
   }
 
+  protected get typeDetailsGroup(): FormGroup {
+    return this.form.get('type_details') as FormGroup;
+  }
+
+  protected showSeparateTypeDetailsSection(): boolean {
+    const productType = this.selectedProductType();
+    return productType !== null && productType !== 'jewelry';
+  }
+
   get selectedCategoryPath(): string | null {
     const catId = this.form?.get('category_id')?.value as number | null | undefined;
     if (!catId) return null;
