@@ -19,10 +19,29 @@ export class ProductApiService {
   private compression = inject(ImageCompressionService);
   private baseUrl = '/api/admin/products';
 
-  getAvailableSizes(categoryId?: number, sizeGroup?: string): Observable<ApiResponse<AvailableSizesResponse>> {
+  getAvailableSizes(
+    categoryId?: number,
+    sizeGroup?: string,
+    brandId?: number,
+    gender?: string,
+    status?: string,
+    condition?: string,
+    color?: string,
+    sizeSystems?: string,
+    priceMin?: string,
+    priceMax?: string,
+  ): Observable<ApiResponse<AvailableSizesResponse>> {
     let params = new HttpParams();
     if (categoryId) params = params.set('category_id', String(categoryId));
     if (sizeGroup) params = params.set('size_group', sizeGroup);
+    if (brandId) params = params.set('brand_id', String(brandId));
+    if (gender) params = params.set('gender', gender);
+    if (status) params = params.set('status', status);
+    if (condition) params = params.set('condition', condition);
+    if (color) params = params.set('color', color);
+    if (sizeSystems) params = params.set('size_systems', sizeSystems);
+    if (priceMin) params = params.set('price_min', priceMin);
+    if (priceMax) params = params.set('price_max', priceMax);
     return this.http.get<ApiResponse<AvailableSizesResponse>>(`${this.baseUrl}/available-sizes`, { params });
   }
 
