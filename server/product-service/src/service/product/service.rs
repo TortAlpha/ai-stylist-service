@@ -237,7 +237,7 @@ impl ProductService {
         debug!(product_id = %id, expected_version, "service:soft_delete");
         let deleted = self
             .repo
-            .soft_delete(id, expected_version)
+            .soft_delete_with_photo_cleanup(id, expected_version)
             .await
             .map_err(ServiceError::from)?;
 
@@ -245,8 +245,6 @@ impl ProductService {
             warn!(product_id = %id, expected_version, "service:soft_delete stale version");
             return Err(ServiceError::StaleVersion);
         }
-
-        self.photo_service.delete_product_images(id).await?;
 
         info!(product_id = %id, "service:soft_delete succeeded");
         Ok(())

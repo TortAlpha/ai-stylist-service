@@ -260,6 +260,17 @@ impl ProductRepository for ProductRepoStub {
         }
     }
 
+    async fn soft_delete_with_photo_cleanup(
+        &self,
+        _id: Uuid,
+        _expected_version: i32,
+    ) -> Result<bool, sqlx::Error> {
+        match self.soft_delete_result {
+            Some(v) => Ok(v),
+            None => panic!("unexpected call to soft_delete_with_photo_cleanup"),
+        }
+    }
+
     async fn filter_options(
         &self,
         _query: &FilterOptionsQuery,
@@ -758,7 +769,7 @@ async fn soft_delete_ok() {
 }
 
 #[tokio::test]
-async fn soft_delete_removes_product_images_only() {
+async fn soft_delete_does_not_delete_storage_inline() {
     let product_id = Uuid::new_v4();
     let storage = Arc::new(StorageStub::default());
     let svc = build_product_service_with_storage(
@@ -770,6 +781,23 @@ async fn soft_delete_removes_product_images_only() {
     svc.soft_delete(product_id, 1)
         .await
         .expect("soft_delete should succeed");
+
+    assert!(storage.delete_calls().is_empty());
+}
+
+#[tokio::test]
+async fn delete_product_images_removes_images_only() {
+    let product_id = Uuid::new_v4();
+    let storage = Arc::new(StorageStub::default());
+    let photo_repo: Arc<dyn ProductPhotoRepository> =
+        Arc::new(ProductPhotoRepoStub::never_called());
+    let storage_trait: Arc<dyn ImageStorage> = storage.clone();
+    let photo_service = build_photo_service(photo_repo, storage_trait);
+
+    photo_service
+        .delete_product_images(product_id)
+        .await
+        .expect("image cleanup should succeed");
 
     assert_eq!(
         storage.delete_calls(),

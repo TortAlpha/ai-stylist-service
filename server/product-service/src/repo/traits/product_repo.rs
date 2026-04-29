@@ -38,6 +38,12 @@ pub trait ProductRepository: Send + Sync {
 
     async fn soft_delete(&self, id: Uuid, expected_version: i32) -> Result<bool, Error>;
 
+    async fn soft_delete_with_photo_cleanup(
+        &self,
+        id: Uuid,
+        expected_version: i32,
+    ) -> Result<bool, Error>;
+
     async fn filter_options(
         &self,
         query: &FilterOptionsQuery,
