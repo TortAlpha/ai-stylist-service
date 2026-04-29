@@ -114,6 +114,14 @@ export class ProductApiService {
     );
   }
 
+  deleteImage(id: string, imageId: number): Observable<ApiResponse<null>> {
+    return this.http.delete<ApiResponse<null>>(`${this.baseUrl}/${id}/images/${imageId}`);
+  }
+
+  deletePreview(id: string): Observable<ApiResponse<null>> {
+    return this.http.delete<ApiResponse<null>>(`${this.baseUrl}/${id}/preview`);
+  }
+
   private async buildProductFormData(
     request: CreateProductRequest | UpdateProductRequest,
     preview?: File,

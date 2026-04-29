@@ -377,9 +377,19 @@
         "refresh": "Обновить",
         "deleteImage": "Удалить изображение",
         "confirmDeleteImage": "Удалить это изображение?",
-        "mockNotImplemented": {
-          "summary": "Пока недоступно",
-          "detail": "Удаление изображений ещё не поддерживается на бэкенде."
+        "deletePreview": "Удалить превью",
+        "confirmDeletePreview": "Удалить превью-изображение?",
+        "imageDeleted": {
+          "summary": "Изображение удалено",
+          "detail": "Изображение удалено."
+        },
+        "previewDeleted": {
+          "summary": "Превью удалено",
+          "detail": "Превью-изображение удалено."
+        },
+        "deleteFailed": {
+          "summary": "Не удалось удалить",
+          "detail": "Не удалось удалить изображение."
         },
         "sections": {
           "preview": "Превью",

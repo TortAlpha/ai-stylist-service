@@ -99,6 +99,16 @@
                 [preview]="true"
                 imageClass="preview-image"
               />
+              <button
+                type="button"
+                class="image-delete-btn"
+                [attr.aria-label]="'admin.products.images.deletePreview' | translate"
+                [title]="'admin.products.images.deletePreview' | translate"
+                [disabled]="deletingPreview()"
+                (click)="confirmPreviewDelete()"
+              >
+                <i [class]="deletingPreview() ? 'pi pi-spin pi-spinner' : 'pi pi-trash'"></i>
+              </button>
             </div>
           } @else {
             <div class="preview-frame preview-frame--empty">
@@ -202,16 +212,16 @@
 
       @if (galleryImages().length > 0) {
         <div class="image-grid">
-          @for (url of galleryImages(); track url.full) {
-            <div class="image-card" [class.is-preview]="url.full === p.preview_url?.full">
+          @for (image of galleryImages(); track image.id) {
+            <div class="image-card" [class.is-preview]="image.full === p.preview_url?.full">
               <p-image
-                [src]="url.medium"
-                [previewImageSrc]="url.full"
+                [src]="image.medium"
+                [previewImageSrc]="image.full"
                 [alt]="'admin.products.form.images.productImageAlt' | translate"
                 [preview]="true"
                 imageClass="image-thumb"
               />
-              @if (url.full === p.preview_url?.full) {
+              @if (image.full === p.preview_url?.full) {
                 <span class="preview-badge">
                   <i class="pi pi-star-fill"></i>
                   {{ 'common.preview' | translate }}
@@ -222,9 +232,10 @@
                 class="image-delete-btn"
                 [attr.aria-label]="'admin.products.images.deleteImage' | translate"
                 [title]="'admin.products.images.deleteImage' | translate"
-                (click)="confirmImageDelete(url)"
+                [disabled]="isDeletingImage(image)"
+                (click)="confirmImageDelete(image)"
               >
-                <i class="pi pi-trash"></i>
+                <i [class]="isDeletingImage(image) ? 'pi pi-spin pi-spinner' : 'pi pi-trash'"></i>
               </button>
             </div>
           }

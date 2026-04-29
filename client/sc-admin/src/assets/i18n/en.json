@@ -377,9 +377,19 @@
         "refresh": "Refresh",
         "deleteImage": "Delete image",
         "confirmDeleteImage": "Delete this image?",
-        "mockNotImplemented": {
-          "summary": "Not available yet",
-          "detail": "Image delete is not yet supported by the backend."
+        "deletePreview": "Delete preview",
+        "confirmDeletePreview": "Delete the preview image?",
+        "imageDeleted": {
+          "summary": "Image deleted",
+          "detail": "The image was removed."
+        },
+        "previewDeleted": {
+          "summary": "Preview deleted",
+          "detail": "The preview image was removed."
+        },
+        "deleteFailed": {
+          "summary": "Delete failed",
+          "detail": "Could not delete the image."
         },
         "sections": {
           "preview": "Preview Image",

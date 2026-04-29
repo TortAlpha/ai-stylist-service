@@ -37,6 +37,10 @@ export interface ImageVariantUrls {
   full: string;
 }
 
+export interface ProductImageUrls extends ImageVariantUrls {
+  id: number;
+}
+
 export interface ProductPreviewResponse {
   id: string;
   sku: string;
@@ -87,7 +91,7 @@ export interface AdminProductDTO {
   currency: string;
   ai_notes: string | null;
   preview_url: ImageVariantUrls | null;
-  image_urls: ImageVariantUrls[];
+  image_urls: ProductImageUrls[];
   brand: BrandShortResponse;
   brand_id: number;
   product_type: string;

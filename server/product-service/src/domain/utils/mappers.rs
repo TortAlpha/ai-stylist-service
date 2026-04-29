@@ -18,11 +18,22 @@ pub struct ImageVariantUrls {
     pub full: String,
 }
 
+/// Indexed product image: storage `id` plus its three variant URLs.
+/// The `id` is the directory index under `products/{product_id}/{id}/` and
+/// is the value clients pass back to `DELETE /products/{id}/images/{image_id}`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ProductImageUrls {
+    pub id: usize,
+    pub thumb: String,
+    pub medium: String,
+    pub full: String,
+}
+
 /// Image URLs resolved by the service layer (presigned)
 #[derive(Debug, serde::Serialize)]
 pub struct ResolvedImageUrls {
     pub preview_url: Option<ImageVariantUrls>,
-    pub image_urls: Vec<ImageVariantUrls>,
+    pub image_urls: Vec<ProductImageUrls>,
 }
 
 impl ProductFull {
