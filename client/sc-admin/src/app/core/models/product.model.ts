@@ -185,6 +185,7 @@ export interface ProductListQuery {
   product_type?: string;
   status?: string;
   gender?: string;
+  color?: string;
   price_min?: string;
   price_max?: string;
   condition?: string;
@@ -192,6 +193,10 @@ export interface ProductListQuery {
   size_value2?: string;
   size_system?: string;
   size_group?: string;
+  size_values?: string;
+  size_values2?: string;
+  size_systems?: string;
+  shoe_widths?: string;
   sort_by?: ProductSortField;
   sort_order?: SortOrder;
 }
