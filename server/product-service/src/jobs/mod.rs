@@ -9,6 +9,7 @@
 //! `Transaction<'_, Postgres>`, so a job is created if and only if the
 //! surrounding business write commits.
 
+pub mod delete_product_images;
 pub mod upload_product_images;
 pub mod upload_product_preview;
 
@@ -25,6 +26,7 @@ use crate::service::product_photo_service::ProductPhotoService;
 
 pub const KIND_UPLOAD_PRODUCT_IMAGES: &str = "upload_product_images";
 pub const KIND_UPLOAD_PRODUCT_PREVIEW: &str = "upload_product_preview";
+pub const KIND_DELETE_PRODUCT_IMAGES: &str = "delete_product_images";
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -138,6 +140,35 @@ pub async fn enqueue_upload_product_preview(
         %content_type,
         size_bytes,
         "jobs:enqueue upload_product_preview created"
+    );
+    Ok(id)
+}
+
+/// Enqueue product image cleanup inside an existing transaction.
+/// Used by product soft-delete so DB state and cleanup scheduling commit atomically.
+pub async fn enqueue_delete_product_images(
+    tx: &mut Transaction<'_, Postgres>,
+    product_id: Uuid,
+) -> Result<i64, sqlx::Error> {
+    let payload = serde_json::json!({ "product_id": product_id });
+    debug!(%product_id, "jobs:enqueue delete_product_images");
+
+    let id: i64 = sqlx::query_scalar(
+        r#"
+        INSERT INTO jobs (kind, payload)
+        VALUES ($1, $2)
+        RETURNING id::BIGINT
+        "#,
+    )
+    .bind(KIND_DELETE_PRODUCT_IMAGES)
+    .bind(payload)
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    info!(
+        %product_id,
+        job_id = id,
+        "jobs:enqueue delete_product_images created"
     );
     Ok(id)
 }
@@ -263,6 +294,7 @@ async fn handle(
     match job.kind.as_str() {
         KIND_UPLOAD_PRODUCT_IMAGES => upload_product_images::handle(job, photo_service).await,
         KIND_UPLOAD_PRODUCT_PREVIEW => upload_product_preview::handle(job, photo_service).await,
+        KIND_DELETE_PRODUCT_IMAGES => delete_product_images::handle(job, photo_service).await,
         other => {
             warn!(job_id = job.id, kind = other, "jobs:unknown kind");
             Err(format!("unknown job kind: {other}").into())

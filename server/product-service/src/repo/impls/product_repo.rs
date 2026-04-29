@@ -11,6 +11,7 @@ use crate::domain::response_dto::product_details::AvailableSizesResponse;
 use crate::domain::utils::csv::csv_values;
 use crate::domain::utils::pagination::PaginationParams;
 use crate::domain::utils::query::{AvailableSizesQuery, FilterOptionsQuery, ProductListQuery};
+use crate::jobs;
 use crate::repo::traits::product_repo::ProductRepository;
 
 use super::product_query_builder::{build_filters, build_order_by};
@@ -406,6 +407,8 @@ impl ProductRepository for PgProductRepo {
     }
 
     async fn soft_delete(&self, id: Uuid, expected_version: i32) -> Result<bool, sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+
         let result = sqlx::query(
             r#"
             UPDATE product
@@ -415,10 +418,16 @@ impl ProductRepository for PgProductRepo {
         )
         .bind(id)
         .bind(expected_version)
-        .execute(&self.pool)
+        .execute(tx.as_mut())
         .await?;
 
-        Ok(result.rows_affected() > 0)
+        let deleted = result.rows_affected() > 0;
+        if deleted {
+            jobs::enqueue_delete_product_images(&mut tx, id).await?;
+        }
+
+        tx.commit().await?;
+        Ok(deleted)
     }
 
     async fn filter_options(

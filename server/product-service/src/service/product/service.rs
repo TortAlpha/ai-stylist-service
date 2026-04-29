@@ -246,8 +246,6 @@ impl ProductService {
             return Err(ServiceError::StaleVersion);
         }
 
-        self.photo_service.delete_product_images(id).await?;
-
         info!(product_id = %id, "service:soft_delete succeeded");
         Ok(())
     }
