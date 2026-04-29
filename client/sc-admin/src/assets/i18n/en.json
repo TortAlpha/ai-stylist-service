@@ -339,10 +339,17 @@
           "genericError": "An error occurred",
           "previewQueuedSummary": "Preview queued",
           "previewQueuedDetail": "Preview upload job has been queued.",
+          "previewReadySummary": "Preview uploaded",
+          "previewReadyDetail": "The preview is ready.",
           "previewUploadFailed": "Failed to upload preview",
           "imagesQueuedSummary": "Images queued",
           "imagesQueuedDetail": "Image upload job has been queued.",
-          "imagesUploadFailed": "Failed to upload images"
+          "imagesReadySummary": "Images uploaded",
+          "imagesReadyDetail": "The gallery has been updated.",
+          "imagesUploadFailed": "Failed to upload images",
+          "processingTimeoutSummary": "Processing is still running",
+          "previewProcessingTimeoutDetail": "The preview job is still processing. Refresh in a moment.",
+          "imagesProcessingTimeoutDetail": "The image job is still processing. Refresh in a moment."
         }
       },
       "staleVersion": "Product was updated by someone else, please refresh.",
