@@ -24,16 +24,34 @@ pub fn build_filters(query: &ProductListQuery) -> FilterResult {
         };
     }
 
+    macro_rules! add_csv_filter {
+        ($field:expr, $column:expr) => {
+            if let Some(raw) = &$field {
+                let values = csv_values(raw);
+                if !values.is_empty() {
+                    idx += 1;
+                    where_clause.push_str(&format!(" AND {} = ANY(${})", $column, idx));
+                    let _ = args.add(values);
+                }
+            }
+        };
+    }
+
     add_filter!(query.brand_id, "brand_id");
     add_filter!(query.category_id, "category_id");
     add_filter!(query.product_type, "\"type\"");
     add_filter!(query.status, "status");
     add_filter!(query.gender, "gender");
+    add_filter!(query.color, "color");
     add_filter!(query.condition, "condition");
     add_filter!(query.size_value, "size_value");
     add_filter!(query.size_value2, "size_value2");
     add_filter!(query.size_system, "size_system");
     add_filter!(query.size_group, "size_group");
+    add_csv_filter!(query.size_values, "size_value");
+    add_csv_filter!(query.size_values2, "size_value2");
+    add_csv_filter!(query.size_systems, "size_system");
+    add_csv_filter!(query.shoe_widths, "shoe_width");
     if let Some(search) = &query.search {
         let trimmed = search.trim();
         if !trimmed.is_empty() {
@@ -61,6 +79,14 @@ pub fn build_filters(query: &ProductListQuery) -> FilterResult {
         args,
         param_count: idx,
     }
+}
+
+fn csv_values(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
 }
 
 pub fn build_order_by(query: &ProductListQuery) -> String {
@@ -94,6 +120,7 @@ mod tests {
             product_type: None,
             status: None,
             gender: None,
+            color: None,
             price_min: None,
             price_max: None,
             condition: None,
@@ -101,6 +128,10 @@ mod tests {
             size_value2: None,
             size_system: None,
             size_group: None,
+            size_values: None,
+            size_values2: None,
+            size_systems: None,
+            shoe_widths: None,
             sort_by: None,
             sort_order: None,
             search: None,
@@ -146,5 +177,20 @@ mod tests {
             "WHERE 1=1 AND brand_id = $1 AND (name ILIKE $2 OR sku ILIKE $2) AND purchase_price >= $3"
         );
         assert_eq!(filters.param_count, 3);
+    }
+
+    #[test]
+    fn csv_size_filters_use_any_placeholders() {
+        let mut q = empty_query();
+        q.size_values = Some("38, 39".to_string());
+        q.shoe_widths = Some("regular,wide".to_string());
+
+        let filters = build_filters(&q);
+
+        assert_eq!(
+            filters.where_clause,
+            "WHERE 1=1 AND size_value = ANY($1) AND shoe_width = ANY($2)"
+        );
+        assert_eq!(filters.param_count, 2);
     }
 }

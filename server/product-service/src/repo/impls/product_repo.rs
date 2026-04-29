@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use sqlx::postgres::PgArguments;
-use sqlx::{Arguments, PgPool, Postgres, Row, Transaction};
+use sqlx::{Arguments, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::domain::product::ProductFull;
@@ -187,8 +186,8 @@ impl ProductRepository for PgProductRepo {
             next_idx + 1,
         );
 
-        data_filters.args.add(per_page);
-        data_filters.args.add(offset);
+        let _ = data_filters.args.add(per_page);
+        let _ = data_filters.args.add(offset);
 
         let items = sqlx::query_as_with::<_, ProductFull, _>(&data_sql, data_filters.args)
             .fetch_all(&self.pool)
@@ -443,7 +442,9 @@ impl ProductRepository for PgProductRepo {
         push_filter!(query.category_id, "p.category_id");
         push_filter!(query.product_type, "c.product_type");
         push_filter!(query.gender, "c.gender");
+        push_filter!(query.status, "p.status");
         push_filter!(query.condition, "pd.condition");
+        push_filter!(query.color, "pd.color");
 
         if query.price_min.is_some() {
             conditions.push(format!("p.purchase_price >= ${}", bind_idx));
@@ -451,7 +452,6 @@ impl ProductRepository for PgProductRepo {
         }
         if query.price_max.is_some() {
             conditions.push(format!("p.purchase_price <= ${}", bind_idx));
-            bind_idx += 1;
         }
 
         let where_clause = conditions.join(" AND ");
@@ -498,7 +498,13 @@ impl ProductRepository for PgProductRepo {
         if let Some(ref v) = query.gender {
             q = q.bind(v);
         }
+        if let Some(ref v) = query.status {
+            q = q.bind(v);
+        }
         if let Some(ref v) = query.condition {
+            q = q.bind(v);
+        }
+        if let Some(ref v) = query.color {
             q = q.bind(v);
         }
         if let Some(v) = query.price_min {
@@ -563,6 +569,38 @@ impl ProductRepository for PgProductRepo {
             conditions.push(format!("c.gender = ${bind_idx}"));
             bind_idx += 1;
         }
+        if query.status.is_some() {
+            conditions.push(format!("p.status = ${bind_idx}"));
+            bind_idx += 1;
+        }
+        if query.condition.is_some() {
+            conditions.push(format!("pd.condition = ${bind_idx}"));
+            bind_idx += 1;
+        }
+        if query.color.is_some() {
+            conditions.push(format!("pd.color = ${bind_idx}"));
+            bind_idx += 1;
+        }
+        let size_systems = query
+            .size_systems
+            .as_deref()
+            .map(csv_values)
+            .unwrap_or_default();
+        if query.size_system.is_some() {
+            conditions.push(format!("pd.size_system = ${bind_idx}"));
+            bind_idx += 1;
+        }
+        if !size_systems.is_empty() {
+            conditions.push(format!("pd.size_system = ANY(${bind_idx})"));
+            bind_idx += 1;
+        }
+        if query.price_min.is_some() {
+            conditions.push(format!("p.purchase_price >= ${bind_idx}"));
+            bind_idx += 1;
+        }
+        if query.price_max.is_some() {
+            conditions.push(format!("p.purchase_price <= ${bind_idx}"));
+        }
 
         let where_clause = conditions.join(" AND ");
 
@@ -591,6 +629,27 @@ impl ProductRepository for PgProductRepo {
         if let Some(ref g) = query.gender {
             q = q.bind(g);
         }
+        if let Some(ref status) = query.status {
+            q = q.bind(status);
+        }
+        if let Some(ref condition) = query.condition {
+            q = q.bind(condition);
+        }
+        if let Some(ref color) = query.color {
+            q = q.bind(color);
+        }
+        if let Some(ref size_system) = query.size_system {
+            q = q.bind(size_system);
+        }
+        if !size_systems.is_empty() {
+            q = q.bind(size_systems);
+        }
+        if let Some(price_min) = query.price_min {
+            q = q.bind(price_min);
+        }
+        if let Some(price_max) = query.price_max {
+            q = q.bind(price_max);
+        }
 
         let row = q.fetch_one(&self.pool).await?;
 
@@ -608,6 +667,14 @@ impl ProductRepository for PgProductRepo {
 
 type OptStr<'a> = Option<&'a str>;
 type OptDec = Option<rust_decimal::Decimal>;
+
+fn csv_values(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
 
 fn extract_type_details(
     input: &TypeDetailsInput,
