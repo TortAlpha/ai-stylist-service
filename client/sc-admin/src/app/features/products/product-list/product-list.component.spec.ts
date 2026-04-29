@@ -38,7 +38,10 @@ describe('ProductListComponent', () => {
 
   function setup(queryParams: Record<string, string> = {}, categories: unknown[] = []) {
     const productApi = {
-      getProducts: vi.fn().mockReturnValue(emptyPage()),
+      getProducts: vi.fn((query?: { page?: number; per_page?: number }) => emptyPage({
+        page: query?.page ?? 1,
+        per_page: query?.per_page ?? 20,
+      })),
       deleteProduct: vi.fn().mockReturnValue(of({ success: true, data: null, error: null })),
       getFilterOptions: vi.fn().mockReturnValue(of({ success: true, data: {}, error: null })),
       getAvailableSizes: vi.fn().mockReturnValue(of({ success: true, data: { size_group: 'letter', values: [] }, error: null })),
@@ -110,6 +113,14 @@ describe('ProductListComponent', () => {
     component.ngOnInit();
     await fixture.whenStable();
     expect(component.sortBy).toBe('created_at');
+  });
+
+  it('keeps per_page from collapsed sidebar options when read from URL', async () => {
+    setup({ per_page: '18' });
+    component.ngOnInit();
+    await fixture.whenStable();
+
+    expect(component['store'].perPage()).toBe(18);
   });
 
   it('toggleSortOrder flips asc/desc and syncs URL', () => {

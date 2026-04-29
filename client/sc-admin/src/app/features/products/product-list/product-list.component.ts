@@ -27,6 +27,10 @@ import { ProductApiService } from '../../../core/services/product-api.service';
 import { ProductPreviewResponse } from '../../../core/models/product.model';
 import { CategoryFullResponse } from '../../../core/models/category.model';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
+import {
+  isRedundantTypeRoot,
+  pathWithoutRedundantTypeRoot,
+} from '../category-tree.utils';
 
 @Component({
   selector: 'app-product-list',
@@ -171,7 +175,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
         if (
           category.id !== selected &&
           children.length > 0 &&
-          this.isRedundantTypeRoot(category, typeKey)
+          isRedundantTypeRoot(category, typeKey)
         ) {
           return [...children].sort((a, b) => cmp(a.name, b.name)).map(buildNode);
         }
@@ -309,7 +313,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
       current = current.parent_id ? byId.get(current.parent_id) : undefined;
     }
 
-    const displayPath = this.pathWithoutRedundantTypeRoot(path, category.product_type);
+    const displayPath = pathWithoutRedundantTypeRoot(path, category.product_type);
 
     return [
       this.t(`genders.${category.gender}`, this.toTitleCase(category.gender)),
@@ -518,9 +522,13 @@ export class ProductListComponent implements OnInit, OnDestroy {
   }
 
   private normalizePerPage(value: number): number {
-    return Number.isFinite(value) && this.pageSizeOptions.includes(value)
+    return Number.isFinite(value) && this.validPageSizeOptions.includes(value)
       ? value
       : this.defaultPerPage();
+  }
+
+  private get validPageSizeOptions(): number[] {
+    return [...new Set([...this.pageSizeOptionsOpen, ...this.pageSizeOptionsCollapsed])];
   }
 
   private async initializeFromQuery(): Promise<void> {
@@ -846,25 +854,6 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   private toTitleCase(value: string): string {
     return value.length ? value[0].toUpperCase() + value.slice(1) : value;
-  }
-
-  private isRedundantTypeRoot(category: CategoryFullResponse, typeKey: string): boolean {
-    return (
-      category.parent_id === null &&
-      category.product_type === typeKey &&
-      this.normalizeCategoryToken(category.name) === this.normalizeCategoryToken(typeKey)
-    );
-  }
-
-  private pathWithoutRedundantTypeRoot(path: string[], typeKey: string): string[] {
-    return path.length > 0 &&
-      this.normalizeCategoryToken(path[0]) === this.normalizeCategoryToken(typeKey)
-      ? path.slice(1)
-      : path;
-  }
-
-  private normalizeCategoryToken(value: string): string {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
 
   private resetSizeFilters(): void {

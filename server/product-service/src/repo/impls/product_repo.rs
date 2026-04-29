@@ -8,6 +8,7 @@ use crate::domain::request_dto::product::{CreateProductRequest, UpdateProductReq
 use crate::domain::request_dto::product_details::UpdateProductDetailsRequest;
 use crate::domain::response_dto::product::ProductFilterOptions;
 use crate::domain::response_dto::product_details::AvailableSizesResponse;
+use crate::domain::utils::csv::csv_values;
 use crate::domain::utils::pagination::PaginationParams;
 use crate::domain::utils::query::{AvailableSizesQuery, FilterOptionsQuery, ProductListQuery};
 use crate::repo::traits::product_repo::ProductRepository;
@@ -667,14 +668,6 @@ impl ProductRepository for PgProductRepo {
 
 type OptStr<'a> = Option<&'a str>;
 type OptDec = Option<rust_decimal::Decimal>;
-
-fn csv_values(raw: &str) -> Vec<String> {
-    raw.split(',')
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
-        .collect()
-}
 
 fn extract_type_details(
     input: &TypeDetailsInput,
