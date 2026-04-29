@@ -1,6 +1,7 @@
 use sqlx::Arguments;
 use sqlx::postgres::PgArguments;
 
+use crate::domain::utils::csv::csv_values;
 use crate::domain::utils::query::{ProductListQuery, ProductSortField, SortOrder};
 
 pub struct FilterResult {
@@ -79,14 +80,6 @@ pub fn build_filters(query: &ProductListQuery) -> FilterResult {
         args,
         param_count: idx,
     }
-}
-
-fn csv_values(raw: &str) -> Vec<String> {
-    raw.split(',')
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
-        .collect()
 }
 
 pub fn build_order_by(query: &ProductListQuery) -> String {

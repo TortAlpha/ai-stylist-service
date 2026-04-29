@@ -39,6 +39,10 @@ import { StyleTag, VibeTag, Season } from '../../../core/models/tag.model';
 import { PurchaseLocation } from '../../../core/models/purchase-location.model';
 import { AdminProductDTO, CreateProductRequest, UpdateProductRequest } from '../../../core/models/product.model';
 import { BrandFormModalComponent } from '../../brands/brand-form-modal/brand-form-modal.component';
+import {
+  isRedundantTypeRoot,
+  pathWithoutRedundantTypeRoot,
+} from '../category-tree.utils';
 
 @Component({
   selector: 'app-product-form-modal',
@@ -217,7 +221,7 @@ export class ProductFormModalComponent implements OnDestroy {
         if (
           category.id !== selectedCategoryId &&
           children.length > 0 &&
-          this.isRedundantTypeRoot(category, typeKey)
+          isRedundantTypeRoot(category, typeKey)
         ) {
           return [...children].sort((a, b) => cmp(a.name, b.name)).map(buildNode);
         }
@@ -278,7 +282,7 @@ export class ProductFormModalComponent implements OnDestroy {
       current = current.parent_id ? byId.get(current.parent_id) : undefined;
     }
 
-    const displayPath = this.pathWithoutRedundantTypeRoot(path, category.product_type);
+    const displayPath = pathWithoutRedundantTypeRoot(path, category.product_type);
 
     return [
       this.t(`genders.${category.gender}`, this.toTitleCase(category.gender)),
@@ -289,25 +293,6 @@ export class ProductFormModalComponent implements OnDestroy {
 
   private toTitleCase(value: string): string {
     return value.length ? value[0].toUpperCase() + value.slice(1) : value;
-  }
-
-  private isRedundantTypeRoot(category: CategoryFullResponse, typeKey: string): boolean {
-    return (
-      category.parent_id === null &&
-      category.product_type === typeKey &&
-      this.normalizeCategoryToken(category.name) === this.normalizeCategoryToken(typeKey)
-    );
-  }
-
-  private pathWithoutRedundantTypeRoot(path: string[], typeKey: string): string[] {
-    return path.length > 0 &&
-      this.normalizeCategoryToken(path[0]) === this.normalizeCategoryToken(typeKey)
-      ? path.slice(1)
-      : path;
-  }
-
-  private normalizeCategoryToken(value: string): string {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
 
   constructor() {
