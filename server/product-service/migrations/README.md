@@ -25,7 +25,10 @@ The product service uses **two layers** of SQL:
     before the first underscore (e.g. `20260502001_seasons_rename.sql`).
     sqlx parses the version as `filename.split_once('_')`; two migrations with
     the same prefix collide.
-  - Wrap the body in a single `BEGIN; … COMMIT;` block.
+  - Do **not** add manual `BEGIN; … COMMIT;` statements. Postgres migrations
+    run via `sqlx::migrate!()` are already transactional; write the migration
+    body directly unless a statement specifically requires non-transactional
+    execution.
   - Defensive SQL only: `IF NOT EXISTS`, `IF EXISTS`, `ON CONFLICT DO NOTHING`,
     `UPDATE … WHERE name = …`. Re-running the same body must be a no-op so
     that bootstrap state and runtime-applied state converge.
