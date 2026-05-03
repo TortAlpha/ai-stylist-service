@@ -8,13 +8,9 @@
 -- Idempotent: re-running is a no-op (UPDATEs match nothing on the second run,
 -- INSERTs are guarded by ON CONFLICT).
 
-BEGIN;
-
 UPDATE season SET name = 'autumn' WHERE name = 'all-season';
 UPDATE season SET name = 'spring' WHERE name = 'demi-season';
 
 INSERT INTO season (name) VALUES
     ('spring'), ('autumn')
 ON CONFLICT (name) DO NOTHING;
-
-COMMIT;
