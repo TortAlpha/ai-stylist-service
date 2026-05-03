@@ -9,8 +9,6 @@
 -- sporty in style_tag; hype, minimalism, retro, wardrobe staple, bold,
 -- classic in vibe_tag) are kept as-is and de-duplicated by ON CONFLICT.
 
-BEGIN;
-
 INSERT INTO style_tag (name) VALUES
     ('casual'),
     ('cozy'),
@@ -52,5 +50,3 @@ INSERT INTO vibe_tag (name) VALUES
     -- Seasonal atmosphere (does NOT overlap the season table)
     ('snow day'), ('rainy day'), ('vacation'), ('beach'), ('holiday'), ('festival')
 ON CONFLICT (name) DO NOTHING;
-
-COMMIT;
