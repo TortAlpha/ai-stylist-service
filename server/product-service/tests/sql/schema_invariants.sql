@@ -261,6 +261,124 @@ BEGIN
 END;
 $$;
 
+-- 7) gender CHECK accepts 'kids' and rejects unknown values
+DO $$
+DECLARE
+    v_kids_id INT;
+BEGIN
+    INSERT INTO category (name, code, parent_id, gender, product_type, size_group)
+    VALUES ('KIDS_GENDER_TEST', 'KGT1', NULL, 'kids', 'clothing', 'letter')
+    RETURNING id INTO v_kids_id;
+
+    PERFORM assert_true(v_kids_id IS NOT NULL, 'Expected kids category insert to succeed');
+
+    BEGIN
+        INSERT INTO category (name, code, parent_id, gender, product_type, size_group)
+        VALUES ('GENDER_INVALID_TEST', 'GIT1', NULL, 'aliens', 'clothing', 'letter');
+        RAISE EXCEPTION 'Expected unknown gender to fail CHECK';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+END;
+$$;
+
+-- 8) season lookup is the post-rename set: summer, winter, spring, autumn
+DO $$
+DECLARE
+    v_count INT;
+BEGIN
+    SELECT count(*) INTO v_count
+    FROM season
+    WHERE name IN ('summer', 'winter', 'spring', 'autumn');
+
+    PERFORM assert_true(
+        v_count = 4,
+        format('Expected 4 canonical seasons (summer/winter/spring/autumn), found %s', v_count)
+    );
+
+    PERFORM assert_true(
+        NOT EXISTS (SELECT 1 FROM season WHERE name IN ('demi-season', 'all-season')),
+        'Expected legacy demi-season/all-season to be absent'
+    );
+END;
+$$;
+
+-- 9) Seeded kids root categories present for each expected product_type
+DO $$
+DECLARE
+    v_missing TEXT;
+BEGIN
+    SELECT string_agg(expected.name, ', ') INTO v_missing
+    FROM (VALUES
+        ('Tops'), ('Bottoms'), ('Outerwear'), ('One-Piece & Sets'),
+        ('Footwear'), ('Accessories'), ('Bags')
+    ) AS expected(name)
+    WHERE NOT EXISTS (
+        SELECT 1 FROM category c
+        WHERE c.parent_id IS NULL
+          AND c.gender = 'kids'
+          AND c.name = expected.name
+    );
+
+    PERFORM assert_true(
+        v_missing IS NULL,
+        format('Expected kids root categories to be seeded; missing: %s', v_missing)
+    );
+END;
+$$;
+
+-- 10) Sample new tags landed in style_tag and vibe_tag
+DO $$
+BEGIN
+    PERFORM assert_true(
+        EXISTS (SELECT 1 FROM style_tag WHERE name = 'soft girl'),
+        'Expected style_tag "soft girl" to be seeded'
+    );
+    PERFORM assert_true(
+        EXISTS (SELECT 1 FROM style_tag WHERE name = 'y2k'),
+        'Expected style_tag "y2k" to be seeded'
+    );
+    PERFORM assert_true(
+        EXISTS (SELECT 1 FROM vibe_tag WHERE name = 'vintage old money'),
+        'Expected vibe_tag "vintage old money" to be seeded'
+    );
+    PERFORM assert_true(
+        EXISTS (SELECT 1 FROM vibe_tag WHERE name = 'snow day'),
+        'Expected vibe_tag "snow day" to be seeded'
+    );
+END;
+$$;
+
+-- 11) generate_product_sku maps gender='kids' to the 'K' segment
+DO $$
+DECLARE
+    v_brand_id    INT;
+    v_category_id INT;
+    v_product_id  UUID;
+    v_sku         TEXT;
+BEGIN
+    INSERT INTO brand (name, code, tier, country)
+    VALUES ('SKU_KIDS_TEST_BRAND', 'SKB1', 'mass', 'RS')
+    RETURNING id INTO v_brand_id;
+
+    INSERT INTO category (name, code, parent_id, gender, product_type, size_group)
+    VALUES ('SKU_KIDS_TEST_CATEGORY', 'SKC1', NULL, 'kids', 'clothing', 'letter')
+    RETURNING id INTO v_category_id;
+
+    INSERT INTO product (name, brand_id, category_id, status, currency)
+    VALUES ('SKU_KIDS_TEST_PRODUCT', v_brand_id, v_category_id, 'intake', 'RSD')
+    RETURNING id INTO v_product_id;
+
+    SELECT sku INTO v_sku FROM product WHERE id = v_product_id;
+
+    PERFORM assert_true(
+        v_sku LIKE 'AVA-SKB1-K-SKC1-%',
+        format('Expected kids SKU to match AVA-SKB1-K-SKC1-*, got: %s', v_sku)
+    );
+END;
+$$;
+
 DROP FUNCTION assert_true(BOOLEAN, TEXT);
 
 SELECT 'SQL schema invariant tests passed' AS result;
