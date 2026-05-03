@@ -596,7 +596,8 @@
   "genders": {
     "male": "Мужской",
     "female": "Женский",
-    "unisex": "Унисекс"
+    "unisex": "Унисекс",
+    "kids": "Детский"
   },
   "brandTiers": {
     "mass": "Масс-маркет",
@@ -606,8 +607,8 @@
   "seasons": {
     "summer": "Лето",
     "winter": "Зима",
-    "demi-season": "Демисезон",
-    "all-season": "Всесезонный"
+    "spring": "Весна",
+    "autumn": "Осень"
   },
   "marketplaces": {
     "TG": "Telegram",
