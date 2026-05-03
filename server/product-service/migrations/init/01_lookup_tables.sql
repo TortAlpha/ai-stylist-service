@@ -24,7 +24,7 @@ CREATE TABLE category (
     name         VARCHAR(200) NOT NULL,
     code         VARCHAR(10)  NOT NULL,
     parent_id    INT          REFERENCES category(id),
-    gender       VARCHAR(10)  NOT NULL CHECK (gender IN ('male', 'female', 'unisex')),
+    gender       VARCHAR(10)  NOT NULL CHECK (gender IN ('male', 'female', 'unisex', 'kids')),
     product_type VARCHAR(20)  NOT NULL
                  CHECK (product_type IN ('clothing', 'footwear', 'bags', 'jewelry', 'accessories')),
     size_group   VARCHAR(20)  NOT NULL DEFAULT 'one_size'
@@ -94,5 +94,5 @@ CREATE TABLE season (
 COMMENT ON TABLE season IS 'Season applicability for products (used in embedding pipeline)';
 
 INSERT INTO season (name) VALUES
-    ('summer'), ('winter'), ('demi-season'), ('all-season')
+    ('summer'), ('winter'), ('spring'), ('autumn')
 ON CONFLICT (name) DO NOTHING;
