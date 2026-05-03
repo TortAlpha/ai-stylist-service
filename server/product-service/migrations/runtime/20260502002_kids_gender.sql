@@ -14,8 +14,6 @@
 --   - All category INSERTs use ON CONFLICT DO NOTHING (covered by
 --     UNIQUE(name, parent_id, gender) and the partial unique index for roots).
 
-BEGIN;
-
 -- 1. Recreate gender CHECK to include 'kids'
 ALTER TABLE category DROP CONSTRAINT IF EXISTS category_gender_check;
 ALTER TABLE category ADD CONSTRAINT category_gender_check
