@@ -161,15 +161,39 @@
       "list": {
         "searchPlaceholder": "Поиск по названию или артикулу",
         "allBrands": "Все бренды",
+        "allCategories": "Все категории",
         "allTypes": "Все типы",
         "allStatuses": "Все статусы",
         "allGenders": "Все",
+        "allConditions": "Любое состояние",
+        "allColors": "Любой цвет",
+        "allSizes": "Любой размер",
+        "allShoeSizes": "Любой размер обуви",
+        "allRingSizes": "Любой размер кольца",
+        "allWaists": "Любая талия",
+        "allLengths": "Любая длина",
+        "allSizeSystems": "Любая система размеров",
+        "allWidths": "Любая ширина",
+        "selectCategoryFirst": "Сначала выберите категорию",
+        "loadingSizes": "Загружаем размеры",
+        "oneSize": "Единый размер",
+        "noSizesAvailable": "Нет доступных размеров",
+        "fromCategory": "из категории",
+        "filtersTitle": "Фильтры",
+        "filterSectionFind": "Поиск",
+        "filterSectionCatalog": "Основное",
+        "filterSectionMeasurements": "Параметры",
+        "filterSectionSort": "Сортировка",
+        "priceMin": "Цена от",
+        "priceMax": "Цена до",
         "activeFilters": "Активные фильтры: {{count}}",
         "clearFilters": "Сбросить фильтры",
         "sortBy": "Сортировать по",
         "order": "Порядок",
         "viewCards": "Карточки",
         "viewTable": "Таблица",
+        "hideFilters": "Скрыть фильтры",
+        "showFilters": "Показать фильтры",
         "sortOrderAsc": "Порядок сортировки: по возрастанию",
         "sortOrderDesc": "Порядок сортировки: по убыванию",
         "confirmDeleteTitle": "Удалить товар",
@@ -283,6 +307,7 @@
         },
         "actions": {
           "saveChanges": "Сохранить изменения",
+          "clearForm": "Очистить форму",
           "createProduct": "Создать товар"
         },
         "validation": {
@@ -315,10 +340,17 @@
           "genericError": "Произошла ошибка",
           "previewQueuedSummary": "Превью поставлено в очередь",
           "previewQueuedDetail": "Задача загрузки превью поставлена в очередь.",
+          "previewReadySummary": "Превью загружено",
+          "previewReadyDetail": "Превью готово.",
           "previewUploadFailed": "Не удалось загрузить превью",
           "imagesQueuedSummary": "Изображения поставлены в очередь",
           "imagesQueuedDetail": "Задача загрузки изображений поставлена в очередь.",
-          "imagesUploadFailed": "Не удалось загрузить изображения"
+          "imagesReadySummary": "Изображения загружены",
+          "imagesReadyDetail": "Галерея обновлена.",
+          "imagesUploadFailed": "Не удалось загрузить изображения",
+          "processingTimeoutSummary": "Обработка ещё идёт",
+          "previewProcessingTimeoutDetail": "Задача превью ещё обрабатывается. Обновите через несколько секунд.",
+          "imagesProcessingTimeoutDetail": "Задача изображений ещё обрабатывается. Обновите через несколько секунд."
         }
       },
       "staleVersion": "Товар был изменён другим пользователем. Пожалуйста, обновите страницу.",
@@ -353,9 +385,19 @@
         "refresh": "Обновить",
         "deleteImage": "Удалить изображение",
         "confirmDeleteImage": "Удалить это изображение?",
-        "mockNotImplemented": {
-          "summary": "Пока недоступно",
-          "detail": "Удаление изображений ещё не поддерживается на бэкенде."
+        "deletePreview": "Удалить превью",
+        "confirmDeletePreview": "Удалить превью-изображение?",
+        "imageDeleted": {
+          "summary": "Изображение удалено",
+          "detail": "Изображение удалено."
+        },
+        "previewDeleted": {
+          "summary": "Превью удалено",
+          "detail": "Превью-изображение удалено."
+        },
+        "deleteFailed": {
+          "summary": "Не удалось удалить",
+          "detail": "Не удалось удалить изображение."
         },
         "sections": {
           "preview": "Превью",
@@ -554,7 +596,8 @@
   "genders": {
     "male": "Мужской",
     "female": "Женский",
-    "unisex": "Унисекс"
+    "unisex": "Унисекс",
+    "kids": "Детский"
   },
   "brandTiers": {
     "mass": "Масс-маркет",
@@ -564,8 +607,8 @@
   "seasons": {
     "summer": "Лето",
     "winter": "Зима",
-    "demi-season": "Демисезон",
-    "all-season": "Всесезонный"
+    "spring": "Весна",
+    "autumn": "Осень"
   },
   "marketplaces": {
     "TG": "Telegram",

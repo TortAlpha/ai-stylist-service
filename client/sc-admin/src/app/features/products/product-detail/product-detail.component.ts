@@ -13,6 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ImageModule } from 'primeng/image';
 import { SelectModule } from 'primeng/select';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -36,6 +37,7 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
     ButtonModule,
     CardModule,
     ConfirmDialogModule,
+    ImageModule,
     SelectModule,
     ToastModule,
     TranslateModule,

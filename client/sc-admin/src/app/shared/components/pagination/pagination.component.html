@@ -2,6 +2,6 @@
   [rows]="perPage"
   [totalRecords]="total"
   [first]="(page - 1) * perPage"
-  [rowsPerPageOptions]="[10, 20, 50]"
+  [rowsPerPageOptions]="rowsPerPageOptions"
   (onPageChange)="onPageChange($event)"
 />

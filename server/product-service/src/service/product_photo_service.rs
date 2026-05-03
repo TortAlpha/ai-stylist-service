@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::domain::error::ServiceError;
 use crate::domain::product_photo::UploadFile;
-use crate::domain::utils::mappers::{ImageVariantUrls, ResolvedImageUrls};
+use crate::domain::utils::mappers::{ImageVariantUrls, ProductImageUrls, ResolvedImageUrls};
 use crate::repo::traits::product_photo_repo::ProductPhotoRepository;
 use crate::service::utils::image_processor::build_variants;
 use crate::service::utils::validators::{
@@ -123,12 +123,63 @@ impl ProductPhotoService {
         Ok(format!("previews/{}/", product_id))
     }
 
-    pub async fn delete_preview(&self, product_id: Uuid) -> Result<()> {
-        todo!()
+    /// Delete all regular product images. Preview images are stored in a
+    /// separate bucket/prefix and are intentionally left untouched.
+    pub async fn delete_product_images(&self, product_id: Uuid) -> Result<()> {
+        debug!(%product_id, "service:delete_product_images");
+
+        let prefix = image_prefix(product_id);
+        self.image_storage
+            .delete_prefix(&self.images_bucket, &prefix)
+            .await
+            .map_err(ServiceError::from)?;
+
+        info!(%product_id, "service:delete_product_images succeeded");
+        Ok(())
     }
 
+    /// Delete the preview image set for a product. No-op if no preview exists.
+    pub async fn delete_preview(&self, product_id: Uuid) -> Result<()> {
+        debug!(%product_id, "service:delete_preview");
+        self.verify_product_exists(product_id).await?;
+
+        let prefix = format!("previews/{}/", product_id);
+        self.image_storage
+            .delete_prefix(&self.preview_bucket, &prefix)
+            .await
+            .map_err(ServiceError::from)?;
+
+        info!(%product_id, "service:delete_preview succeeded");
+        Ok(())
+    }
+
+    /// Delete a single image (all variants) by its storage index.
+    /// Returns `NotFound` if no image exists at that index.
     pub async fn delete_image(&self, product_id: Uuid, image_id: usize) -> Result<()> {
-        todo!()
+        debug!(%product_id, image_id, "service:delete_image");
+        self.verify_product_exists(product_id).await?;
+
+        let prefix = format!("{}{}/", image_prefix(product_id), image_id);
+        let keys = self
+            .image_storage
+            .list_keys(&self.images_bucket, &prefix)
+            .await
+            .map_err(ServiceError::from)?;
+
+        if keys.is_empty() {
+            warn!(%product_id, image_id, "service:delete_image not found");
+            return Err(ServiceError::NotFound(format!(
+                "image {image_id} not found for product {product_id}"
+            )));
+        }
+
+        self.image_storage
+            .delete_prefix(&self.images_bucket, &prefix)
+            .await
+            .map_err(ServiceError::from)?;
+
+        info!(%product_id, image_id, "service:delete_image succeeded");
+        Ok(())
     }
 
     pub async fn resolve_preview_urls(&self, product_id: Uuid) -> Result<ImageVariantUrls> {
@@ -153,7 +204,7 @@ impl ProductPhotoService {
         &self,
         product_id: Uuid,
         image_id: usize,
-    ) -> Result<ImageVariantUrls> {
+    ) -> Result<ProductImageUrls> {
         debug!(%product_id, image_id, "service:resolve_image_urls_at");
         let prefix = format!("{}{}/", image_prefix(product_id), image_id);
         let keys = self
@@ -168,7 +219,13 @@ impl ProductPhotoService {
             )));
         }
 
-        self.presign_variants(&self.images_bucket, &keys).await
+        let variants = self.presign_variants(&self.images_bucket, &keys).await?;
+        Ok(ProductImageUrls {
+            id: image_id,
+            thumb: variants.thumb,
+            medium: variants.medium,
+            full: variants.full,
+        })
     }
 
     /// Resolve preview + all image variant URLs for a product.

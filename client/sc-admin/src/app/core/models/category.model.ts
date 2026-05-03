@@ -1,4 +1,4 @@
-export type Gender = 'male' | 'female' | 'unisex';
+export type Gender = 'male' | 'female' | 'unisex' | 'kids';
 export type ProductType = 'clothing' | 'footwear' | 'bags' | 'jewelry' | 'accessories';
 export type SizeGroup = 'letter' | 'letter_or_numeric' | 'waist_length' | 'shoe' | 'ring' | 'measurement_cm' | 'dimensions' | 'hat' | 'one_size';
 

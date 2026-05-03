@@ -37,6 +37,7 @@ pub struct ProductListQuery {
     pub product_type: Option<String>,
     pub status: Option<String>,
     pub gender: Option<String>,
+    pub color: Option<String>,
     pub price_min: Option<Decimal>,
     pub price_max: Option<Decimal>,
     pub condition: Option<String>,
@@ -46,6 +47,10 @@ pub struct ProductListQuery {
     pub size_value2: Option<String>,
     pub size_system: Option<String>,
     pub size_group: Option<String>,
+    pub size_values: Option<String>,
+    pub size_values2: Option<String>,
+    pub size_systems: Option<String>,
+    pub shoe_widths: Option<String>,
 
     pub sort_by: Option<ProductSortField>,
     pub sort_order: Option<SortOrder>,
@@ -67,6 +72,13 @@ pub struct AvailableSizesQuery {
     pub size_group: Option<String>,
     pub brand_id: Option<i32>,
     pub gender: Option<String>,
+    pub status: Option<String>,
+    pub condition: Option<String>,
+    pub color: Option<String>,
+    pub size_system: Option<String>,
+    pub size_systems: Option<String>,
+    pub price_min: Option<Decimal>,
+    pub price_max: Option<Decimal>,
 }
 
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
@@ -94,7 +106,9 @@ pub struct FilterOptionsQuery {
     pub category_id: Option<i32>,
     pub product_type: Option<String>,
     pub gender: Option<String>,
+    pub status: Option<String>,
     pub condition: Option<String>,
+    pub color: Option<String>,
     pub price_min: Option<Decimal>,
     pub price_max: Option<Decimal>,
 }

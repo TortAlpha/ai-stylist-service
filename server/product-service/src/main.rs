@@ -36,6 +36,12 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to connect to database");
 
+    sqlx::migrate!("./migrations/runtime")
+        .run(&pool)
+        .await
+        .expect("Failed to apply database migrations");
+    info!("Database migrations applied");
+
     // ── S3 ──────────────────────────────────────────────────
     let aws_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
     let s3_internal_config = aws_sdk_s3::config::Builder::from(&aws_config)

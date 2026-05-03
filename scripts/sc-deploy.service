@@ -1,0 +1,17 @@
+[Unit]
+Description=sc pull-based CD deploy (backup + roll if new tag)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# User must be in the docker group.
+User=tortalpha
+Group=tortalpha
+Environment=SC_REPO_DIR=/home/tortalpha/Code/sc
+Environment=SC_BACKUP_DIR=/home/tortalpha/Code/sc/backups
+Environment=SC_RETENTION_DAYS=30
+ExecStart=/home/tortalpha/Code/sc/scripts/deploy.sh
+
+# If deploy.sh throws, leave the unit failed so the next timer tick retries.
+# Don't auto-restart in-tick — we don't want backup/restart loops.

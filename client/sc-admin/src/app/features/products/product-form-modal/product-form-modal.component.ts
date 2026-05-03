@@ -9,13 +9,14 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
+import { TreeSelectModule } from 'primeng/treeselect';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TextareaModule } from 'primeng/textarea';
@@ -24,9 +25,9 @@ import { ChipModule } from 'primeng/chip';
 import { DividerModule } from 'primeng/divider';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
-import { MessageService } from 'primeng/api';
+import { MessageService, TreeNode } from 'primeng/api';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { Subscription, firstValueFrom } from 'rxjs';
+import { Subscription, debounceTime, firstValueFrom } from 'rxjs';
 import { ProductApiService } from '../../../core/services/product-api.service';
 import { BrandApiService } from '../../../core/services/brand-api.service';
 import { CategoryApiService } from '../../../core/services/category-api.service';
@@ -38,18 +39,24 @@ import { StyleTag, VibeTag, Season } from '../../../core/models/tag.model';
 import { PurchaseLocation } from '../../../core/models/purchase-location.model';
 import { AdminProductDTO, CreateProductRequest, UpdateProductRequest } from '../../../core/models/product.model';
 import { BrandFormModalComponent } from '../../brands/brand-form-modal/brand-form-modal.component';
+import {
+  isRedundantTypeRoot,
+  pathWithoutRedundantTypeRoot,
+} from '../category-tree.utils';
 
 @Component({
   selector: 'app-product-form-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FormsModule,
     ReactiveFormsModule,
     DialogModule,
     ButtonModule,
     InputTextModule,
     InputNumberModule,
     SelectModule,
+    TreeSelectModule,
     MultiSelectModule,
     CheckboxModule,
     TextareaModule,
@@ -90,6 +97,7 @@ export class ProductFormModalComponent implements OnDestroy {
   vibeTags: VibeTag[] = [];
   seasons: Season[] = [];
   purchaseLocations: PurchaseLocation[] = [];
+  selectedCategoryNode: TreeNode | null = null;
 
   protected readonly loadingProduct = signal(false);
   protected readonly saving = signal(false);
@@ -97,7 +105,10 @@ export class ProductFormModalComponent implements OnDestroy {
   protected readonly selectedProductType = signal<string | null>(null);
   protected readonly selectedSizeGroup = signal<string | null>(null);
   protected readonly brandModalVisible = signal(false);
+  protected readonly hasCreateDraft = signal(false);
   private langChangeSub: Subscription | null = null;
+  private createDraftSub: Subscription | null = null;
+  private readonly createDraftStorageKey = 'admin.product.create.draft.v1';
 
   statuses: Array<{ label: string; value: string }> = [];
 
@@ -112,6 +123,7 @@ export class ProductFormModalComponent implements OnDestroy {
   shoeWidths: Array<{ label: string; value: string }> = [];
 
   handleTypes: Array<{ label: string; value: string }> = [];
+  private readonly categoryNodeCache = new Map<string, TreeNode>();
 
   private readonly statusValues = [
     'intake',
@@ -138,50 +150,157 @@ export class ProductFormModalComponent implements OnDestroy {
   private readonly shoeWidthValues = ['narrow', 'regular', 'wide'] as const;
   private readonly handleTypeValues = ['shoulder', 'crossbody', 'hand', 'backpack', 'tote'] as const;
 
-  get categoryOptions(): Array<{ label: string; value: number }> {
+  get categoryTreeNodes(): TreeNode[] {
     if (!this.categories.length) {
       return [];
     }
 
-    const categoryById = new Map(this.categories.map(cat => [cat.id, cat] as const));
+    const byId = new Map(this.categories.map(cat => [cat.id, cat] as const));
     const parentIds = new Set(
       this.categories
         .map(cat => cat.parent_id)
         .filter((parentId): parentId is number => parentId !== null),
     );
 
-    const leafCategories = this.categories.filter(cat => !parentIds.has(cat.id));
     const selectedCategoryId = this.form?.get('category_id')?.value as number | null | undefined;
+    const selectableCategories = this.categories.filter(
+      cat => !parentIds.has(cat.id) || cat.id === selectedCategoryId,
+    );
 
-    // Keep currently selected category visible even if old data used a non-leaf category.
-    if (selectedCategoryId && !leafCategories.some(cat => cat.id === selectedCategoryId)) {
-      const selectedCategory = categoryById.get(selectedCategoryId);
-      if (selectedCategory) {
-        leafCategories.push(selectedCategory);
+    const visibleIds = new Set<number>();
+    for (const category of selectableCategories) {
+      let current: CategoryFullResponse | undefined = category;
+      while (current) {
+        visibleIds.add(current.id);
+        current = current.parent_id ? byId.get(current.parent_id) : undefined;
       }
     }
 
-    return leafCategories
-      .map(cat => ({
-        label: this.buildCategoryOptionLabel(cat, categoryById),
-        value: cat.id,
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    type TypeGroup = Map<string, CategoryFullResponse[]>;
+    type GenderGroup = Map<string, TypeGroup>;
+    const root: GenderGroup = new Map();
+
+    for (const category of this.categories.filter(cat => visibleIds.has(cat.id))) {
+      const types = root.get(category.gender) ?? new Map();
+      const bucket = types.get(category.product_type) ?? [];
+      bucket.push(category);
+      types.set(category.product_type, bucket);
+      root.set(category.gender, types);
+    }
+
+    const cmp = (a: string, b: string) => a.localeCompare(b);
+    const buildCategoryNodes = (categories: CategoryFullResponse[], typeKey: string): TreeNode[] => {
+      const groupIds = new Set(categories.map(cat => cat.id));
+      const childrenByParent = new Map<number | null, CategoryFullResponse[]>();
+
+      for (const category of categories) {
+        const parentId = category.parent_id && groupIds.has(category.parent_id)
+          ? category.parent_id
+          : null;
+        const bucket = childrenByParent.get(parentId) ?? [];
+        bucket.push(category);
+        childrenByParent.set(parentId, bucket);
+      }
+
+      const buildNode = (category: CategoryFullResponse): TreeNode => {
+        const children = (childrenByParent.get(category.id) ?? [])
+          .sort((a, b) => cmp(a.name, b.name))
+          .map(buildNode);
+        const isSelected = category.id === selectedCategoryId;
+        const isLeaf = children.length === 0 && !parentIds.has(category.id);
+        const selectable = isLeaf || isSelected;
+
+        return this.upsertCategoryNode(`c:${category.id}`, {
+          label: category.name,
+          data: selectable ? { id: category.id } : undefined,
+          selectable,
+          icon: isLeaf ? 'pi pi-tag' : 'pi pi-folder',
+          children,
+        });
+      };
+
+      const buildRootNodes = (category: CategoryFullResponse): TreeNode[] => {
+        const children = childrenByParent.get(category.id) ?? [];
+        if (
+          category.id !== selectedCategoryId &&
+          children.length > 0 &&
+          isRedundantTypeRoot(category, typeKey)
+        ) {
+          return [...children].sort((a, b) => cmp(a.name, b.name)).map(buildNode);
+        }
+
+        return [buildNode(category)];
+      };
+
+      return (childrenByParent.get(null) ?? [])
+        .sort((a, b) => cmp(a.name, b.name))
+        .flatMap(buildRootNodes);
+    };
+
+    const nodes: TreeNode[] = [];
+    const sortedGenders = [...root.entries()].sort((a, b) =>
+      cmp(this.t(`genders.${a[0]}`, a[0]), this.t(`genders.${b[0]}`, b[0])),
+    );
+
+    for (const [genderKey, types] of sortedGenders) {
+      const genderNode = this.upsertCategoryNode(`g:${genderKey}`, {
+        label: this.t(`genders.${genderKey}`, this.toTitleCase(genderKey)),
+        icon: 'pi pi-users',
+        selectable: false,
+        children: [],
+      });
+
+      const sortedTypes = [...types.entries()].sort((a, b) =>
+        cmp(this.t(`productTypes.${a[0]}`, a[0]), this.t(`productTypes.${b[0]}`, b[0])),
+      );
+
+      for (const [typeKey, categories] of sortedTypes) {
+        const typeNode = this.upsertCategoryNode(`g:${genderKey}/t:${typeKey}`, {
+          label: this.t(`productTypes.${typeKey}`, this.toTitleCase(typeKey)),
+          icon: 'pi pi-folder',
+          selectable: false,
+          children: buildCategoryNodes(categories, typeKey),
+        });
+        genderNode.children!.push(typeNode);
+      }
+
+      nodes.push(genderNode);
+    }
+
+    return nodes;
   }
 
-  private buildCategoryOptionLabel(
-    category: CategoryFullResponse,
-    categoryById: Map<number, CategoryFullResponse>,
-  ): string {
-    const parentName = category.parent_id ? categoryById.get(category.parent_id)?.name : null;
-    const genderLabel = this.t(`genders.${category.gender}`, this.toTitleCase(category.gender));
-    const typeLabel = this.t(`productTypes.${category.product_type}`, this.toTitleCase(category.product_type));
-    const categoryPath = parentName ? `${parentName} / ${category.name}` : category.name;
-    return this.t(
-      'admin.products.form.categoryOptionLabel',
-      `${genderLabel} - ${categoryPath} (${typeLabel})`,
-      { gender: genderLabel, path: categoryPath, type: typeLabel },
-    );
+  protected get typeDetailsGroup(): FormGroup {
+    return this.form.get('type_details') as FormGroup;
+  }
+
+  protected showSeparateTypeDetailsSection(): boolean {
+    const productType = this.selectedProductType();
+    return productType !== null && productType !== 'jewelry';
+  }
+
+  get selectedCategoryPath(): string | null {
+    const catId = this.form?.get('category_id')?.value as number | null | undefined;
+    if (!catId) return null;
+
+    const category = this.categories.find(cat => cat.id === catId);
+    if (!category) return null;
+
+    const byId = new Map(this.categories.map(cat => [cat.id, cat] as const));
+    const path: string[] = [];
+    let current: CategoryFullResponse | undefined = category;
+    while (current) {
+      path.unshift(current.name);
+      current = current.parent_id ? byId.get(current.parent_id) : undefined;
+    }
+
+    const displayPath = pathWithoutRedundantTypeRoot(path, category.product_type);
+
+    return [
+      this.t(`genders.${category.gender}`, this.toTitleCase(category.gender)),
+      this.t(`productTypes.${category.product_type}`, this.toTitleCase(category.product_type)),
+      ...displayPath,
+    ].join(' / ');
   }
 
   private toTitleCase(value: string): string {
@@ -199,14 +318,23 @@ export class ProductFormModalComponent implements OnDestroy {
     effect(() => {
       const isVisible = this.visible();
       if (isVisible) {
+        const pid = this.productId();
+
+        this.stopCreateDraftAutosave();
         this.staleVersionError.set(false);
         this.selectedProductType.set(null);
         this.selectedSizeGroup.set(null);
+        this.selectedCategoryNode = null;
         this.existingProduct = null;
         this.buildForm();
+        if (!pid) {
+          this.restoreCreateDraft();
+          this.startCreateDraftAutosave();
+        } else {
+          this.hasCreateDraft.set(false);
+        }
         this.loadDropdownData();
 
-        const pid = this.productId();
         if (pid) {
           this.loadProduct(pid);
         }
@@ -216,6 +344,7 @@ export class ProductFormModalComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.langChangeSub?.unsubscribe();
+    this.stopCreateDraftAutosave();
   }
 
   private buildLocalizedOptions(): void {
@@ -295,12 +424,134 @@ export class ProductFormModalComponent implements OnDestroy {
     });
   }
 
-  onCategoryChange(): void {
+  private getEmptyFormValue(): Record<string, unknown> {
+    return {
+      name: '',
+      brand_id: null,
+      category_id: null,
+      status: 'intake',
+      purchase_price: '',
+      currency: 'RSD',
+      purchase_location_id: null,
+      ai_notes: '',
+      details: {
+        condition: '',
+        material: '',
+        color: '',
+        year_of_release: null,
+        is_vintage: false,
+        is_collab: false,
+        collab_name: '',
+        is_limited_edition: false,
+        special_notes: '',
+      },
+      size: {
+        size_value: '',
+        size_value2: '',
+        size_system: null,
+        measurement_cm: '',
+      },
+      type_details: {
+        fit: null,
+        shoe_width: null,
+        insole_length_cm: '',
+        width_cm: '',
+        height_cm: '',
+        depth_cm: '',
+        handle_type: null,
+        bag_size_label: '',
+        metal: '',
+        stone: '',
+        clasp_type: '',
+      },
+      style_tag_ids: [],
+      vibe_tag_ids: [],
+      season_ids: [],
+    };
+  }
+
+  onCategoryNodeChange(node: TreeNode | null): void {
+    const id = (node?.data as { id: number } | undefined)?.id ?? null;
+    this.selectedCategoryNode = node ?? null;
+    this.form.get('category_id')?.setValue(id);
+    this.form.get('category_id')?.markAsTouched();
+    this.onCategoryChange();
+  }
+
+  onCategoryChange(resetDependentFields = true): void {
     const catId = this.form.get('category_id')?.value;
     const cat = this.categories.find(c => c.id === catId);
     this.selectedProductType.set(cat?.product_type ?? null);
     this.selectedSizeGroup.set(cat?.size_group ?? null);
+    this.syncSelectedCategoryNode();
+    if (resetDependentFields) {
+      this.resetCategoryDependentFields();
+    }
     this.cdr.markForCheck();
+  }
+
+  private resetCategoryDependentFields(): void {
+    this.form.get('size')?.reset({
+      size_value: '',
+      size_value2: '',
+      size_system: null,
+      measurement_cm: '',
+    });
+    this.form.get('type_details')?.reset({
+      fit: null,
+      shoe_width: null,
+      insole_length_cm: '',
+      width_cm: '',
+      height_cm: '',
+      depth_cm: '',
+      handle_type: null,
+      bag_size_label: '',
+      metal: '',
+      stone: '',
+      clasp_type: '',
+    });
+  }
+
+  private syncSelectedCategoryNode(): void {
+    const catId = this.form?.get('category_id')?.value as number | null | undefined;
+    if (!catId) {
+      this.selectedCategoryNode = null;
+      return;
+    }
+
+    this.selectedCategoryNode = this.findCategoryNode(this.categoryTreeNodes, catId);
+  }
+
+  private findCategoryNode(nodes: TreeNode[], id: number): TreeNode | null {
+    for (const node of nodes) {
+      if ((node.data as { id?: number } | undefined)?.id === id) {
+        return node;
+      }
+      if (node.children) {
+        const found = this.findCategoryNode(node.children, id);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
+  private upsertCategoryNode(key: string, next: Omit<TreeNode, 'key'>): TreeNode {
+    const existing = this.categoryNodeCache.get(key);
+    if (!existing) {
+      const node = { key, ...next };
+      this.categoryNodeCache.set(key, node);
+      return node;
+    }
+
+    const expanded = existing.expanded;
+    Object.assign(existing, next);
+    existing.key = key;
+    if (expanded !== undefined) {
+      existing.expanded = expanded;
+    }
+    return existing;
   }
 
   private async loadDropdownData(): Promise<void> {
@@ -321,7 +572,12 @@ export class ProductFormModalComponent implements OnDestroy {
       if (purchaseLocationsRes.success && purchaseLocationsRes.data) {
         this.purchaseLocations = purchaseLocationsRes.data;
       }
-      this.syncDerivedSelectionsFromProduct();
+      if (this.productId()) {
+        this.syncDerivedSelectionsFromProduct();
+        this.syncSelectedCategoryNode();
+      } else {
+        this.syncCreateDraftCategorySelection();
+      }
       this.cdr.markForCheck();
     } catch {
       // Silently fail -- user will see empty dropdowns
@@ -389,6 +645,7 @@ export class ProductFormModalComponent implements OnDestroy {
       this.form.get('type_details')?.patchValue(td);
     }
     this.syncDerivedSelectionsFromProduct();
+    this.syncSelectedCategoryNode();
   }
 
   private mapTagNamesToIds(names: string[], options: Array<{ id: number; name: string }>): number[] {
@@ -555,6 +812,8 @@ export class ProductFormModalComponent implements OnDestroy {
           return;
         }
 
+        this.stopCreateDraftAutosave();
+        this.clearCreateDraft();
         this.saved.emit();
       }
     } catch (err: any) {
@@ -596,6 +855,26 @@ export class ProductFormModalComponent implements OnDestroy {
     this.visibleChange.emit(false);
   }
 
+  clearCreateForm(): void {
+    if (this.productId()) return;
+
+    this.stopCreateDraftAutosave();
+    this.form.reset(this.getEmptyFormValue(), { emitEvent: false });
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    this.selectedProductType.set(null);
+    this.selectedSizeGroup.set(null);
+    this.selectedCategoryNode = null;
+    this.clearCreateDraft();
+    this.startCreateDraftAutosave();
+    this.cdr.markForCheck();
+  }
+
+  private clearCreateDraft(): void {
+    this.getDraftStorage()?.removeItem(this.createDraftStorageKey);
+    this.hasCreateDraft.set(false);
+  }
+
   onManageImages(): void {
     const id = this.productId();
     if (!id) return;
@@ -609,5 +888,79 @@ export class ProductFormModalComponent implements OnDestroy {
   private t(key: string, fallback?: string, params?: Record<string, string | number>): string {
     const translated = this.translate.instant(key, params);
     return translated === key ? (fallback ?? key) : translated;
+  }
+
+  private startCreateDraftAutosave(): void {
+    this.stopCreateDraftAutosave();
+    this.hasCreateDraft.set(this.createDraftExists());
+    this.createDraftSub = this.form.valueChanges
+      .pipe(debounceTime(300))
+      .subscribe(() => this.saveCreateDraft());
+  }
+
+  private stopCreateDraftAutosave(): void {
+    this.createDraftSub?.unsubscribe();
+    this.createDraftSub = null;
+  }
+
+  private restoreCreateDraft(): void {
+    const storage = this.getDraftStorage();
+    if (!storage) return;
+
+    const rawDraft = storage.getItem(this.createDraftStorageKey);
+    if (!rawDraft) {
+      this.hasCreateDraft.set(false);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawDraft) as { value?: unknown };
+      if (parsed.value && typeof parsed.value === 'object') {
+        this.form.patchValue(parsed.value, { emitEvent: false });
+        this.hasCreateDraft.set(true);
+      }
+    } catch {
+      storage.removeItem(this.createDraftStorageKey);
+      this.hasCreateDraft.set(false);
+    }
+  }
+
+  private saveCreateDraft(): void {
+    if (this.productId()) return;
+
+    const storage = this.getDraftStorage();
+    if (!storage) return;
+
+    storage.setItem(
+      this.createDraftStorageKey,
+      JSON.stringify({
+        version: 1,
+        savedAt: new Date().toISOString(),
+        value: this.form.getRawValue(),
+      }),
+    );
+    this.hasCreateDraft.set(true);
+  }
+
+  private createDraftExists(): boolean {
+    return this.getDraftStorage()?.getItem(this.createDraftStorageKey) !== null;
+  }
+
+  private getDraftStorage(): Storage | null {
+    try {
+      return typeof localStorage === 'undefined' ? null : localStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  private syncCreateDraftCategorySelection(): void {
+    const categoryId = this.form.get('category_id')?.value;
+    if (categoryId) {
+      this.onCategoryChange(false);
+      return;
+    }
+
+    this.syncSelectedCategoryNode();
   }
 }

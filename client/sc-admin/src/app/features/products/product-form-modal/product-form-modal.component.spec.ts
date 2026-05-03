@@ -3,8 +3,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { TreeNode } from 'primeng/api';
 import { of } from 'rxjs';
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProductFormModalComponent } from './product-form-modal.component';
 import { ProductApiService } from '../../../core/services/product-api.service';
 import { BrandApiService } from '../../../core/services/brand-api.service';
@@ -14,6 +15,7 @@ import { PurchaseLocationApiService } from '../../../core/services/purchase-loca
 import { Brand } from '../../../core/models/brand.model';
 
 const NOW = '2026-01-01T00:00:00.000Z';
+const CREATE_DRAFT_KEY = 'admin.product.create.draft.v1';
 
 const clothingCategory = {
   id: 10,
@@ -33,10 +35,39 @@ const bagsCategory = {
   size_group: 'dimensions',
 };
 
+const jewelryCategory = {
+  id: 30,
+  name: 'Rings',
+  parent_id: null,
+  gender: 'unisex',
+  product_type: 'jewelry',
+  size_group: 'ring',
+};
+
 const brandAcme: Brand = { id: 1, name: 'Acme', code: 'ACME', tier: 'premium', country: null, created_at: NOW };
 
 function arrayRes<T>(data: T[]) {
   return of({ success: true, data, error: null });
+}
+
+function collectSelectableCategoryIds(nodes: TreeNode[]): number[] {
+  return nodes.flatMap(node => [
+    ...((node.data as { id?: number } | undefined)?.id ? [(node.data as { id: number }).id] : []),
+    ...collectSelectableCategoryIds(node.children ?? []),
+  ]);
+}
+
+function findCategoryNode(nodes: TreeNode[], id: number): TreeNode | null {
+  for (const node of nodes) {
+    if ((node.data as { id?: number } | undefined)?.id === id) {
+      return node;
+    }
+    const child = findCategoryNode(node.children ?? [], id);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
 }
 
 describe('ProductFormModalComponent', () => {
@@ -50,6 +81,17 @@ describe('ProductFormModalComponent', () => {
   };
 
   beforeEach(() => {
+    const localStorageData = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn((key: string) => localStorageData.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        localStorageData.set(key, value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        localStorageData.delete(key);
+      }),
+    } as unknown as Storage);
+
     productApi = {
       createProduct: vi.fn().mockReturnValue(of({ success: true, data: {}, error: null })),
       updateProduct: vi.fn().mockReturnValue(of({ success: true, data: {}, error: null })),
@@ -85,6 +127,10 @@ describe('ProductFormModalComponent', () => {
     ref.setInput('visible', false);
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('required-field validation: name, brand, category, condition', () => {
     expect(component.form.valid).toBe(false);
 
@@ -102,15 +148,63 @@ describe('ProductFormModalComponent', () => {
     expect(component['selectedSizeGroup']()).toBe('dimensions');
   });
 
-  it('categoryOptions filters leaf categories only', () => {
+  it('does not render a separate type details section for jewelry', () => {
+    component['selectedProductType'].set('jewelry');
+    expect(component['showSeparateTypeDetailsSection']()).toBe(false);
+
+    component['selectedProductType'].set('bags');
+    expect(component['showSeparateTypeDetailsSection']()).toBe(true);
+  });
+
+  it('categoryTreeNodes allows leaf categories only', () => {
     component.categories = [
       { ...clothingCategory, id: 1, parent_id: null, name: 'Root' },
       { ...clothingCategory, id: 2, parent_id: 1, name: 'Leaf' },
     ] as any;
     component.form.get('category_id')?.setValue(null);
 
-    const options = component.categoryOptions;
-    expect(options.map(o => o.value)).toEqual([2]);
+    expect(collectSelectableCategoryIds(component.categoryTreeNodes)).toEqual([2]);
+  });
+
+  it('category tree selection writes category_id and derived signals', () => {
+    component.categories = [clothingCategory, bagsCategory] as any;
+
+    const node = findCategoryNode(component.categoryTreeNodes, 20);
+    component.onCategoryNodeChange(node);
+
+    expect(component.form.get('category_id')?.value).toBe(20);
+    expect(component['selectedProductType']()).toBe('bags');
+    expect(component['selectedSizeGroup']()).toBe('dimensions');
+  });
+
+  it('category tree hides root category when it duplicates product type', () => {
+    component.categories = [
+      {
+        id: 1,
+        name: 'Bags',
+        parent_id: null,
+        gender: 'female',
+        product_type: 'bags',
+        size_group: 'dimensions',
+      },
+      {
+        id: 2,
+        name: 'Crossbody Bags',
+        parent_id: 1,
+        gender: 'female',
+        product_type: 'bags',
+        size_group: 'dimensions',
+      },
+    ] as any;
+
+    const typeNode = findCategoryNode(component.categoryTreeNodes, 2);
+    expect(typeNode?.label).toBe('Crossbody Bags');
+    expect(component.categoryTreeNodes[0].children?.[0].children?.map(node => node.label)).toEqual([
+      'Crossbody Bags',
+    ]);
+
+    component.form.get('category_id')?.setValue(2);
+    expect(component.selectedCategoryPath).toBe('Female / Bags / Crossbody Bags');
   });
 
   it('onBrandCreated appends to brands, sorts, and auto-selects', () => {
@@ -154,6 +248,115 @@ describe('ProductFormModalComponent', () => {
     expect(body.details.condition).toBe('excellent');
     expect(body.details.size.size_value).toBe('M');
     expect(body.details.type_details).toEqual({ product_type: 'clothing', fit: 'regular' });
+  });
+
+  it('submit (create) still sends jewelry type_details from inline details fields', async () => {
+    component.brands = [brandAcme];
+    component.categories = [jewelryCategory] as any;
+    component.form.patchValue({
+      name: 'Ring',
+      brand_id: 1,
+      category_id: 30,
+    });
+    component.form.get('details')?.patchValue({ condition: 'excellent' });
+    component['selectedProductType'].set('jewelry');
+    component.form.get('type_details')?.patchValue({
+      metal: 'gold',
+      stone: 'diamond',
+      clasp_type: 'lobster',
+    });
+
+    await component.onSubmit();
+
+    const body = productApi.createProduct.mock.calls[0][0];
+    expect(body.details.type_details).toEqual({
+      product_type: 'jewelry',
+      metal: 'gold',
+      stone: 'diamond',
+      clasp_type: 'lobster',
+    });
+  });
+
+  it('restores create draft and syncs category-derived state', () => {
+    localStorage.setItem(
+      CREATE_DRAFT_KEY,
+      JSON.stringify({
+        version: 1,
+        savedAt: NOW,
+        value: {
+          name: 'Draft ring',
+          brand_id: 1,
+          category_id: 30,
+          details: { condition: 'good' },
+          type_details: { metal: 'silver' },
+        },
+      }),
+    );
+
+    component.categories = [jewelryCategory] as any;
+    component['restoreCreateDraft']();
+    component['syncCreateDraftCategorySelection']();
+
+    expect(component.form.get('name')?.value).toBe('Draft ring');
+    expect(component.form.get('details.condition')?.value).toBe('good');
+    expect(component.form.get('type_details.metal')?.value).toBe('silver');
+    expect(component['selectedProductType']()).toBe('jewelry');
+    expect(component['selectedSizeGroup']()).toBe('ring');
+    expect(component['hasCreateDraft']()).toBe(true);
+  });
+
+  it('saves create draft to localStorage', () => {
+    component.form.patchValue({ name: 'Draft jacket', brand_id: 1, category_id: 10 });
+    component.form.get('details')?.patchValue({ condition: 'excellent' });
+
+    component['saveCreateDraft']();
+
+    const draft = JSON.parse(localStorage.getItem(CREATE_DRAFT_KEY) ?? '{}');
+    expect(draft.value.name).toBe('Draft jacket');
+    expect(draft.value.details.condition).toBe('excellent');
+    expect(component['hasCreateDraft']()).toBe(true);
+  });
+
+  it('clears create form and removes saved draft', () => {
+    localStorage.setItem(
+      CREATE_DRAFT_KEY,
+      JSON.stringify({ version: 1, savedAt: NOW, value: { name: 'Old draft' } }),
+    );
+    component['hasCreateDraft'].set(true);
+    component.form.patchValue({ name: 'Draft jacket', brand_id: 1, category_id: 10 });
+    component.form.get('details')?.patchValue({ condition: 'excellent' });
+    component['selectedProductType'].set('clothing');
+    component['selectedSizeGroup'].set('letter');
+
+    component.clearCreateForm();
+
+    expect(component.form.get('name')?.value).toBe('');
+    expect(component.form.get('brand_id')?.value).toBeNull();
+    expect(component.form.get('category_id')?.value).toBeNull();
+    expect(component.form.get('currency')?.value).toBe('RSD');
+    expect(component.form.get('details.condition')?.value).toBe('');
+    expect(component['selectedProductType']()).toBeNull();
+    expect(component['selectedSizeGroup']()).toBeNull();
+    expect(localStorage.getItem(CREATE_DRAFT_KEY)).toBeNull();
+    expect(component['hasCreateDraft']()).toBe(false);
+  });
+
+  it('clears create draft after successful create', async () => {
+    localStorage.setItem(
+      CREATE_DRAFT_KEY,
+      JSON.stringify({ version: 1, savedAt: NOW, value: { name: 'Old draft' } }),
+    );
+    component['hasCreateDraft'].set(true);
+    component.brands = [brandAcme];
+    component.categories = [clothingCategory] as any;
+    component.form.patchValue({ name: 'Jacket', brand_id: 1, category_id: 10 });
+    component.form.get('details')?.patchValue({ condition: 'excellent' });
+    component['selectedProductType'].set('clothing');
+
+    await component.onSubmit();
+
+    expect(localStorage.getItem(CREATE_DRAFT_KEY)).toBeNull();
+    expect(component['hasCreateDraft']()).toBe(false);
   });
 
   it('submit (create) falls back to accessories type_details when no product type', async () => {

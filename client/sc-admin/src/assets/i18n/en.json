@@ -161,15 +161,39 @@
       "list": {
         "searchPlaceholder": "Search by name or SKU",
         "allBrands": "All brands",
+        "allCategories": "All categories",
         "allTypes": "All types",
         "allStatuses": "All statuses",
         "allGenders": "All genders",
+        "allConditions": "Any condition",
+        "allColors": "Any color",
+        "allSizes": "Any size",
+        "allShoeSizes": "Any shoe size",
+        "allRingSizes": "Any ring size",
+        "allWaists": "Any waist",
+        "allLengths": "Any length",
+        "allSizeSystems": "Any size system",
+        "allWidths": "Any width",
+        "selectCategoryFirst": "Select a category first",
+        "loadingSizes": "Loading sizes",
+        "oneSize": "One size",
+        "noSizesAvailable": "No sizes available",
+        "fromCategory": "from category",
+        "filtersTitle": "Filters",
+        "filterSectionFind": "Find",
+        "filterSectionCatalog": "Main",
+        "filterSectionMeasurements": "Details",
+        "filterSectionSort": "Sorting",
+        "priceMin": "Price from",
+        "priceMax": "Price to",
         "activeFilters": "Active filters: {{count}}",
         "clearFilters": "Clear filters",
         "sortBy": "Sort by",
         "order": "Order",
         "viewCards": "Cards",
         "viewTable": "Table",
+        "hideFilters": "Hide filters",
+        "showFilters": "Show filters",
         "sortOrderAsc": "Sort order: ascending",
         "sortOrderDesc": "Sort order: descending",
         "confirmDeleteTitle": "Delete Product",
@@ -283,6 +307,7 @@
         },
         "actions": {
           "saveChanges": "Save Changes",
+          "clearForm": "Clear Form",
           "createProduct": "Create Product"
         },
         "validation": {
@@ -315,10 +340,17 @@
           "genericError": "An error occurred",
           "previewQueuedSummary": "Preview queued",
           "previewQueuedDetail": "Preview upload job has been queued.",
+          "previewReadySummary": "Preview uploaded",
+          "previewReadyDetail": "The preview is ready.",
           "previewUploadFailed": "Failed to upload preview",
           "imagesQueuedSummary": "Images queued",
           "imagesQueuedDetail": "Image upload job has been queued.",
-          "imagesUploadFailed": "Failed to upload images"
+          "imagesReadySummary": "Images uploaded",
+          "imagesReadyDetail": "The gallery has been updated.",
+          "imagesUploadFailed": "Failed to upload images",
+          "processingTimeoutSummary": "Processing is still running",
+          "previewProcessingTimeoutDetail": "The preview job is still processing. Refresh in a moment.",
+          "imagesProcessingTimeoutDetail": "The image job is still processing. Refresh in a moment."
         }
       },
       "staleVersion": "Product was updated by someone else, please refresh.",
@@ -353,9 +385,19 @@
         "refresh": "Refresh",
         "deleteImage": "Delete image",
         "confirmDeleteImage": "Delete this image?",
-        "mockNotImplemented": {
-          "summary": "Not available yet",
-          "detail": "Image delete is not yet supported by the backend."
+        "deletePreview": "Delete preview",
+        "confirmDeletePreview": "Delete the preview image?",
+        "imageDeleted": {
+          "summary": "Image deleted",
+          "detail": "The image was removed."
+        },
+        "previewDeleted": {
+          "summary": "Preview deleted",
+          "detail": "The preview image was removed."
+        },
+        "deleteFailed": {
+          "summary": "Delete failed",
+          "detail": "Could not delete the image."
         },
         "sections": {
           "preview": "Preview Image",
@@ -554,7 +596,8 @@
   "genders": {
     "male": "Male",
     "female": "Female",
-    "unisex": "Unisex"
+    "unisex": "Unisex",
+    "kids": "Kids"
   },
   "brandTiers": {
     "mass": "Mass Market",
@@ -564,8 +607,8 @@
   "seasons": {
     "summer": "Summer",
     "winter": "Winter",
-    "demi-season": "Demi-Season",
-    "all-season": "All Season"
+    "spring": "Spring",
+    "autumn": "Autumn"
   },
   "marketplaces": {
     "TG": "Telegram",

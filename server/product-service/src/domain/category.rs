@@ -19,6 +19,7 @@ pub enum Gender {
     Male,
     Female,
     Unisex,
+    Kids,
 }
 
 impl Gender {
@@ -27,6 +28,7 @@ impl Gender {
             Self::Male => "male",
             Self::Female => "female",
             Self::Unisex => "unisex",
+            Self::Kids => "kids",
         }
     }
 }

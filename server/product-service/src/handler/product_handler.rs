@@ -24,6 +24,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             // CRUD
             .route("", web::post().to(create_product_admin))
             .route("", web::get().to(get_product_previews_by_query_admin))
+            // Filters must be registered before /{id}, otherwise static paths can be parsed as ids.
+            .route("/available-sizes", web::get().to(available_sizes))
+            .route("/filter-options", web::get().to(filter_options))
             .route("/{id}", web::get().to(get_product_by_id_admin))
             .route("/{id}", web::put().to(update_product_by_id_admin))
             .route("/{id}", web::delete().to(delete_product_by_id_admin))
@@ -33,12 +36,17 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                 web::post().to(product_photo_handler::upload_images),
             )
             .route(
+                "/{id}/images/{image_id}",
+                web::delete().to(product_photo_handler::delete_image),
+            )
+            .route(
                 "/{id}/preview",
                 web::post().to(product_photo_handler::upload_preview),
             )
-            // Filters
-            .route("/available-sizes", web::get().to(available_sizes))
-            .route("/filter-options", web::get().to(filter_options)),
+            .route(
+                "/{id}/preview",
+                web::delete().to(product_photo_handler::delete_preview),
+            ),
     );
 }
 

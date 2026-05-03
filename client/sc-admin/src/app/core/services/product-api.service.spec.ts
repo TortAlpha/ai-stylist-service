@@ -39,6 +39,10 @@ describe('ProductApiService', () => {
       search: 'jacket',
       brand_id: 7,
       status: 'ready',
+      color: 'black',
+      size_values: 'M,L',
+      size_systems: 'EU,US',
+      shoe_widths: 'regular,wide',
       sort_by: 'name',
       sort_order: 'asc',
     }).subscribe();
@@ -50,6 +54,10 @@ describe('ProductApiService', () => {
     expect(req.request.params.get('search')).toBe('jacket');
     expect(req.request.params.get('brand_id')).toBe('7');
     expect(req.request.params.get('status')).toBe('ready');
+    expect(req.request.params.get('color')).toBe('black');
+    expect(req.request.params.get('size_values')).toBe('M,L');
+    expect(req.request.params.get('size_systems')).toBe('EU,US');
+    expect(req.request.params.get('shoe_widths')).toBe('regular,wide');
     expect(req.request.params.get('sort_by')).toBe('name');
     expect(req.request.params.get('sort_order')).toBe('asc');
 
@@ -61,16 +69,24 @@ describe('ProductApiService', () => {
   });
 
   it('builds optional params for available sizes', () => {
-    service.getAvailableSizes(15, 'footwear').subscribe();
+    service.getAvailableSizes(15, 'shoe', 7, 'female', 'ready', 'excellent', 'black', 'EU,US', '10', '500').subscribe();
 
     const req = httpMock.expectOne(request => request.url === '/api/admin/products/available-sizes');
     expect(req.request.method).toBe('GET');
     expect(req.request.params.get('category_id')).toBe('15');
-    expect(req.request.params.get('size_group')).toBe('footwear');
+    expect(req.request.params.get('size_group')).toBe('shoe');
+    expect(req.request.params.get('brand_id')).toBe('7');
+    expect(req.request.params.get('gender')).toBe('female');
+    expect(req.request.params.get('status')).toBe('ready');
+    expect(req.request.params.get('condition')).toBe('excellent');
+    expect(req.request.params.get('color')).toBe('black');
+    expect(req.request.params.get('size_systems')).toBe('EU,US');
+    expect(req.request.params.get('price_min')).toBe('10');
+    expect(req.request.params.get('price_max')).toBe('500');
 
     req.flush({
       success: true,
-      data: { size_group: 'footwear', values: ['42', '43'], widths: ['narrow', 'regular'] },
+      data: { size_group: 'shoe', values: ['42', '43'], widths: ['narrow', 'regular'] },
       error: null,
     });
   });

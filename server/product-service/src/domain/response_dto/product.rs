@@ -9,7 +9,7 @@ use super::product_details::ProductAttributesResponse;
 use super::product_details::SizeResponse;
 use super::product_details::TypeDetailsResponse;
 use super::tag::ProductTagsResponse;
-use crate::domain::utils::mappers::ImageVariantUrls;
+use crate::domain::utils::mappers::{ImageVariantUrls, ProductImageUrls};
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ProductPreviewResponse {
@@ -53,7 +53,7 @@ pub struct AdminProductDTO {
     pub currency: String,
     pub ai_notes: Option<String>,
     pub preview_url: Option<ImageVariantUrls>,
-    pub image_urls: Vec<ImageVariantUrls>,
+    pub image_urls: Vec<ProductImageUrls>,
     pub brand: BrandShortResponse,
     pub brand_id: i32,
     pub product_type: String,

@@ -245,6 +245,7 @@ impl ProductService {
             warn!(product_id = %id, expected_version, "service:soft_delete stale version");
             return Err(ServiceError::StaleVersion);
         }
+
         info!(product_id = %id, "service:soft_delete succeeded");
         Ok(())
     }

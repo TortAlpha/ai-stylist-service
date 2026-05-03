@@ -83,18 +83,22 @@
 
           <div class="field">
             <label for="category_id" class="required-label">{{ 'product.category' | translate }}</label>
-            <p-select
-              id="category_id"
-              formControlName="category_id"
-              [options]="categoryOptions"
-              optionLabel="label"
-              optionValue="value"
+            <p-treeSelect
+              inputId="category_id"
+              [options]="categoryTreeNodes"
+              [ngModel]="selectedCategoryNode"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onCategoryNodeChange($event)"
+              selectionMode="single"
               [placeholder]="'admin.products.form.placeholders.selectCategory' | translate"
               [filter]="true"
               [filterPlaceholder]="'admin.products.form.placeholders.searchCategories' | translate"
-              styleClass="w-full"
-              (onChange)="onCategoryChange()"
+              [showClear]="true"
+              containerStyleClass="w-full"
             />
+            @if (selectedCategoryPath) {
+              <small class="field-help">{{ selectedCategoryPath }}</small>
+            }
             @if (form.get('category_id')?.invalid && form.get('category_id')?.touched) {
               <small class="error-text">{{ 'admin.products.form.validation.categoryRequired' | translate }}</small>
             }
@@ -190,6 +194,23 @@
             <label for="color">{{ 'product.color' | translate }}</label>
             <input pInputText id="color" formControlName="color" [placeholder]="'admin.products.form.placeholders.color' | translate" class="w-full" />
           </div>
+
+          @if (selectedProductType() === 'jewelry') {
+            <ng-container [formGroup]="typeDetailsGroup">
+              <div class="field">
+                <label for="metal">{{ 'product.metal' | translate }}</label>
+                <input pInputText id="metal" formControlName="metal" [placeholder]="'admin.products.form.placeholders.metal' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="stone">{{ 'product.stone' | translate }}</label>
+                <input pInputText id="stone" formControlName="stone" [placeholder]="'admin.products.form.placeholders.stone' | translate" class="w-full" />
+              </div>
+              <div class="field">
+                <label for="clasp_type">{{ 'product.claspType' | translate }}</label>
+                <input pInputText id="clasp_type" formControlName="clasp_type" [placeholder]="'admin.products.form.placeholders.claspType' | translate" class="w-full" />
+              </div>
+            </ng-container>
+          }
 
           <div class="field">
             <label for="year_of_release">{{ 'admin.products.form.fields.yearOfRelease' | translate }}</label>
@@ -377,7 +398,7 @@
       <p-divider />
 
       <!-- SECTION: Type-Specific Details -->
-      @if (selectedProductType()) {
+      @if (showSeparateTypeDetailsSection()) {
         <section class="form-section" formGroupName="type_details">
           <h3 class="section-title">{{ 'admin.products.form.typeDetailsTitle' | translate: { type: getTypeLabel(selectedProductType()!) } }}</h3>
           <div class="form-grid">
@@ -443,20 +464,6 @@
                 <div class="field">
                   <label for="bag_size_label">{{ 'admin.products.form.fields.bagSizeLabel' | translate }}</label>
                   <input pInputText id="bag_size_label" formControlName="bag_size_label" [placeholder]="'admin.products.form.placeholders.bagSizeLabel' | translate" class="w-full" />
-                </div>
-              }
-              @case ('jewelry') {
-                <div class="field">
-                  <label for="metal">{{ 'product.metal' | translate }}</label>
-                  <input pInputText id="metal" formControlName="metal" [placeholder]="'admin.products.form.placeholders.metal' | translate" class="w-full" />
-                </div>
-                <div class="field">
-                  <label for="stone">{{ 'product.stone' | translate }}</label>
-                  <input pInputText id="stone" formControlName="stone" [placeholder]="'admin.products.form.placeholders.stone' | translate" class="w-full" />
-                </div>
-                <div class="field">
-                  <label for="clasp_type">{{ 'product.claspType' | translate }}</label>
-                  <input pInputText id="clasp_type" formControlName="clasp_type" [placeholder]="'admin.products.form.placeholders.claspType' | translate" class="w-full" />
                 </div>
               }
               @default {
@@ -544,6 +551,16 @@
             severity="secondary"
             [outlined]="true"
             (onClick)="onManageImages()"
+            [disabled]="saving()"
+          />
+        }
+        @if (!productId()) {
+          <p-button
+            [label]="'admin.products.form.actions.clearForm' | translate"
+            icon="pi pi-eraser"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="clearCreateForm()"
             [disabled]="saving()"
           />
         }
