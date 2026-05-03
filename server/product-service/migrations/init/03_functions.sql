@@ -26,6 +26,7 @@ BEGIN
         WHEN 'male'   THEN 'M'
         WHEN 'female' THEN 'F'
         WHEN 'unisex' THEN 'U'
+        WHEN 'kids'   THEN 'K'
     END
     INTO v_category_code, v_gender_code
     FROM category WHERE id = NEW.category_id;

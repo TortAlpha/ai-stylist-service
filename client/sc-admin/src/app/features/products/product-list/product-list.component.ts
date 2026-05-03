@@ -503,6 +503,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
       { label: this.t('genders.male'), value: 'male' },
       { label: this.t('genders.female'), value: 'female' },
       { label: this.t('genders.unisex'), value: 'unisex' },
+      { label: this.t('genders.kids'), value: 'kids' },
     ];
 
     this.sortByOptions = [
