@@ -97,5 +97,3 @@ INSERT INTO category (name, code, parent_id, gender, product_type, size_group) V
 -- Kids Bags
 ('Backpacks',             'BKP', (SELECT id FROM category WHERE name = 'Bags' AND parent_id IS NULL AND gender = 'kids'), 'kids', 'bags', 'dimensions')
 ON CONFLICT DO NOTHING;
-
-COMMIT;
