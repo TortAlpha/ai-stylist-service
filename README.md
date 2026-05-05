@@ -12,8 +12,9 @@
 `ai-service` работает как отдельный FastAPI-сервис, который:
 
 - принимает чат-запросы от frontend через SSE;
-- использует OpenAI API для генерации ответа, tool use и embeddings;
-- ходит в `product-service` за товарами, фильтрами, фасетами и semantic search;
+- использует OpenAI API для генерации ответа и tool use;
+- использует multimodal embedding-модель (общую с `product-service`) для query-эмбеддингов — текст и картинки в одном векторном пространстве;
+- ходит в `product-service` за товарами, фильтрами, фасетами и hybrid semantic search (text + image);
 - проверяет пользователя через JWT, выпущенный `auth-service`;
 - хранит историю диалога in-memory для MVP;
 - возвращает текстовый ответ и ids рекомендованных товаров.
@@ -36,8 +37,9 @@ token -> token -> products -> done
 frontend
   -> nginx
   -> ai-service
-      -> OpenAI API
-      -> product-service
+      -> OpenAI API           (chat completion)
+      -> Multimodal Embed API (query embedding — общий провайдер с product-service)
+      -> product-service       (search, filters, hybrid semantic search)
       -> auth-service
 ```
 
@@ -57,9 +59,24 @@ frontend
 ## Product Embeddings
 
 Semantic search проектируется так, чтобы embeddings товаров принадлежали
-`product-service`. В product DB должна появиться таблица `product_embeddings`
-с `pgvector`, а `ai-service` будет только эмбеддить пользовательский запрос и
-отправлять query vector во внутренний endpoint product-service.
+`product-service`. В product DB добавляются две таблицы с `pgvector`:
+
+- `product_text_embeddings` — один вектор на товар, считается по
+  `generate_product_text(id)`;
+- `product_image_embeddings` — по строке на каждое фото товара (по
+  `medium.webp` варианта), агрегация при поиске — `MAX` cosine-similarity.
+
+Обе таблицы и query-эмбеддинг в `ai-service` используют **одну и ту же**
+multimodal embedding-модель (вариант B — единое векторное пространство для
+текста и картинок). Это позволяет text-запросу из чата напрямую матчиться на
+визуальные признаки товара. Конкретный провайдер (Cohere Embed-3 / Voyage
+Multimodal / Vertex `multimodalembedding@001` / open_clip+SigLIP)
+фиксируется в Phase 0a после спайка по качеству и стоимости.
+
+`ai-service` эмбеддит только пользовательский запрос и отправляет query
+vector во внутренний endpoint `product-service`, который считает hybrid
+score `w_text * text_cos + w_image * MAX(image_cos)` и возвращает товары
+вместе со `score_breakdown`.
 
 ## Tool Use
 
@@ -78,5 +95,7 @@ LLM сможет вызывать ограниченный набор инстр
 - после рестарта сервиса история пропадает;
 - горизонтальное масштабирование потребует Redis или другое внешнее хранилище;
 - rate limits и cost guards на старте можно реализовать in-memory;
-- product embeddings worker и semantic endpoint ещё нужно добавить в
-  `product-service`.
+- text- и image-embedder в `product-service`, миграции pgvector и
+  hybrid semantic endpoint ещё нужно добавить (Phase 0a + 0b);
+- «найти по фото» (image upload в чат) — post-MVP, инфраструктура для этого
+  закладывается уже в MVP, но tool/UI добавляется позже.

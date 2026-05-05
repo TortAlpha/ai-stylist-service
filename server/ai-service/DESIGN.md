@@ -5,9 +5,9 @@
 ## Стек
 
 - **Python 3.12 + FastAPI + Uvicorn (uvloop)** — async, чтобы дёшево держать длинные SSE-стримы.
-- **OpenAI Python SDK ≥ 1.30** — `chat.completions.create(stream=True)` с tool use; `embeddings.create` для query-эмбеддингов.
+- **OpenAI Python SDK ≥ 1.30** — `chat.completions.create(stream=True)` с tool use. OpenAI используется **только** для chat-completion.
   - Chat-модель по умолчанию: `gpt-4o-mini` (дешёвая для tool-use loop), эскалация на `gpt-4o` через env при необходимости.
-  - Embedding-модель: `text-embedding-3-small` (dim=1536). Та же модель используется в `product-service` для product embeddings — векторные пространства должны совпадать.
+- **Multimodal embedding-модель** — единое векторное пространство для текста и изображений товаров. Той же моделью считаются: (а) text-вектор товара из `generate_product_text`, (б) image-вектор каждого фото товара (по `medium.webp`), (в) query-вектор пользовательского сообщения в `ai-service`. Провайдер фиксируется в Phase 0b после замера качества/стоимости — кандидаты: Cohere Embed-3 multimodal, Voyage `voyage-multimodal-3`, Vertex `multimodalembedding@001`, локальный open_clip / SigLIP. Размерность (`MULTIMODAL_EMBED_DIM`) — параметр выбранной модели; pgvector-таблицы создаются под фиксированную dim. OpenAI text-embedding для query/индексации **не используется** — это ломало бы общее пространство с image-векторами.
 - **httpx (async)** — клиент к `product-service`: таймауты, exponential backoff, connection pool.
 - **sse-starlette** — SSE-стрим в браузер с keep-alive ping.
 - **Pydantic v2** — валидация tool-args от LLM и схем входящих/исходящих сообщений.
@@ -62,10 +62,15 @@ server/ai-service/
 | Var | Default | Назначение |
 |---|---|---|
 | `SERVICE_PORT` | `8084` | HTTP-порт |
-| `OPENAI_API_KEY` | — | Обязательно |
+| `OPENAI_API_KEY` | — | Обязательно (только chat) |
 | `OPENAI_CHAT_MODEL` | `gpt-4o-mini` | Можно переопределить на `gpt-4o` |
-| `OPENAI_EMBED_MODEL` | `text-embedding-3-small` | Должна совпадать с моделью индекса в product-service |
-| `OPENAI_REQUEST_TIMEOUT_SECONDS` | `30` | Таймаут одного OpenAI-вызова |
+| `OPENAI_REQUEST_TIMEOUT_SECONDS` | `30` | Таймаут одного OpenAI chat-вызова |
+| `MULTIMODAL_EMBED_PROVIDER` | — | Один из: `cohere`, `voyage`, `vertex`, `local_clip`. Фиксируется в Phase 0b. Должен совпадать с `product-service` |
+| `MULTIMODAL_EMBED_MODEL` | — | Имя модели у выбранного провайдера (например, `embed-multilingual-v3.0` для Cohere) |
+| `MULTIMODAL_EMBED_DIM` | — | Размерность вектора. Должна совпадать с dim таблиц `product_text_embeddings` / `product_image_embeddings` |
+| `MULTIMODAL_EMBED_API_KEY` | — | Секрет провайдера (для `local_clip` — пусто, модель грузится в процесс) |
+| `MULTIMODAL_EMBED_BASE_URL` | — | Опционально, для self-hosted эндпоинтов |
+| `MULTIMODAL_EMBED_TIMEOUT_SECONDS` | `15` | Таймаут одного embed-вызова |
 | `PRODUCT_SERVICE_URL` | `http://sc-product-service:8081` | |
 | `PRODUCT_SERVICE_TIMEOUT_SECONDS` | `5` | |
 | `INTERNAL_API_TOKEN` | — | Shared secret для internal endpoint-ов product-service |
@@ -75,10 +80,12 @@ server/ai-service/
 | `MAX_TOKENS_PER_REPLY` | `800` | `max_tokens` в chat completion |
 | `RATE_LIMIT_MESSAGES_PER_MIN` | `12` | Per user |
 | `RATE_LIMIT_TOKENS_PER_DAY` | `50000` | Per user |
-| `EMBEDDINGS_DAILY_CAP` | `10000` | Per service (всего query-эмбеддингов в сутки) |
+| `QUERY_EMBED_DAILY_CAP` | `10000` | Per service (всего query-эмбеддингов через multimodal-провайдера в сутки) |
 | `CONVERSATION_TTL_MINUTES` | `30` | TTL in-memory сессии |
 | `LOG_LEVEL` | `info` | |
 | `JWT_SECRET` | — | Опционально, для локального verify |
+
+Веса гибридного скоринга (`HYBRID_TEXT_WEIGHT`, `HYBRID_IMAGE_WEIGHT`) и режим агрегации картинок (`IMAGE_EMBED_AGGREGATION = per_image | centroid`) живут на стороне `product-service` (см. «Хранилища»), потому что финальный score считается там в SQL.
 
 ## Границы сервиса
 
@@ -90,12 +97,12 @@ server/ai-service/
                       |  - conversations               |
                       +---------------+----------------+
                                       |
-                    +---------------+---------------+----------------+
-                    |                               |                |
-                    v                               v                v
-             product-service                   OpenAI API       auth-service
-             (HTTP, source of truth,           (chat +           (JWT verify
-              filters, pgvector)                query embed)      через nginx)
+                    +---------------+--------+----------+----------+
+                    |                        |          |          |
+                    v                        v          v          v
+             product-service             OpenAI API   Multimodal   auth-service
+             (HTTP, source of truth,     (chat only)  Embed API    (JWT verify
+              filters, pgvector)                      (query embed) через nginx)
 ```
 
 JWT валидируется на nginx через `auth_request → /internal/auth/verify` (так же, как для product/user-service). Внутрь `stylist-service` приходят уже подтверждённые `X-User-Id` и `X-User-Role`. История диалогов и rate-limit-счётчики — **in-memory** в процессе `stylist-service`.
@@ -104,43 +111,113 @@ JWT валидируется на nginx через `auth_request → /internal/a
 
 ### product-service / product DB
 
-Товары, фильтры, фасеты, текст для эмбеддинга и сами product embeddings принадлежат `product-service`.
+Товары, фильтры, фасеты, тексты для эмбеддинга и сами product embeddings принадлежат `product-service`.
 Это сохраняет одну точку правды для статусов, soft-delete, размеров, категорий, цен и правил видимости витрины.
 
-В product DB добавляется таблица индекса:
+`stylist-service` **не** имеет прямого доступа к product DB и не хранит копии эмбеддингов.
+
+#### Multimodal-индекс: две таблицы
+
+Поскольку у товара есть текстовое представление и **N фото**, индекс разбит на две таблицы. Обе считаются одной и той же multimodal-моделью (вариант B — единое векторное пространство), поэтому query-вектор сравним с обоими видами строк.
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE product_embeddings (
-    product_id  UUID PRIMARY KEY,
-    embedding   vector(1536) NOT NULL,
+-- Текстовый вектор товара: один на товар.
+-- Источник — generate_product_text(id), считаем multimodal-моделью в text-mode.
+CREATE TABLE product_text_embeddings (
+    product_id  UUID PRIMARY KEY REFERENCES product(id) ON DELETE CASCADE,
+    embedding   vector(:dim) NOT NULL,
     text_hash   TEXT NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX product_embeddings_hnsw
-    ON product_embeddings
+CREATE INDEX product_text_embeddings_hnsw
+    ON product_text_embeddings
     USING hnsw (embedding vector_cosine_ops);
+
+-- Image-вектор каждого фото товара: до N строк на товар.
+-- image_idx совпадает с индексом каталога S3 `products/{product_id}/{image_idx}/`.
+-- Источник — `medium.webp` варианта (компромисс качество/размер для embedder API).
+CREATE TABLE product_image_embeddings (
+    product_id  UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    image_idx   INT  NOT NULL,
+    embedding   vector(:dim) NOT NULL,
+    image_hash  TEXT NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (product_id, image_idx)
+);
+
+CREATE INDEX product_image_embeddings_hnsw
+    ON product_image_embeddings
+    USING hnsw (embedding vector_cosine_ops);
+
+CREATE INDEX product_image_embeddings_product
+    ON product_image_embeddings (product_id);
 ```
 
-`text_hash` — хэш строки, из которой считается эмбеддинг. Если поля товара не изменились так, чтобы хэш сменился, — пересчёт пропускаем.
+`:dim` — `MULTIMODAL_EMBED_DIM` выбранной модели (1024/1408/…); миграция параметризуется этой переменной.
 
-Текст строится в `product-service` из продуктовой модели. В текущей схеме уже есть helper `generate_product_text(p_product_id)`, который собирает name, brand, category, tags, season, details и `ai_notes`.
+`text_hash` — SHA256 от строки `generate_product_text(id)`. `image_hash` — SHA256 от байт `medium.webp` соответствующего варианта в S3 (стабильнее raw — не зависит от формата исходника). Если хэш не изменился — пересчёт пропускаем.
 
-`product-service` даёт внутренние endpoint-ы:
+Текст строится в `product-service` из продуктовой модели — helper `generate_product_text(p_product_id)` уже есть и собирает name, brand, category, tags, season, details, `ai_notes`. Для image-вектора берём `medium.webp` (max edge 800px) — этого достаточно большинству API-провайдеров (Cohere/Voyage/Vertex принимают base64 / URL картинок такого размера).
+
+#### Hybrid scoring (`per_image` режим)
+
+Запрос-вектор сравнивается и с text-, и с image-эмбеддингами товара. Для image берётся **MAX** косинусной близости по фото — чтобы товар, у которого хотя бы один ракурс релевантен запросу, попал в выдачу. Финальный score — взвешенная сумма:
+
+```sql
+WITH text_scores AS (
+    SELECT product_id, 1 - (embedding <=> $q) AS s
+    FROM product_text_embeddings
+),
+image_scores AS (
+    SELECT product_id, MAX(1 - (embedding <=> $q)) AS s
+    FROM product_image_embeddings
+    GROUP BY product_id
+)
+SELECT
+    p.id,
+    COALESCE(t.s, 0) AS text_score,
+    COALESCE(i.s, 0) AS image_score,
+    $w_text  * COALESCE(t.s, 0) +
+    $w_image * COALESCE(i.s, 0) AS score
+FROM product p
+LEFT JOIN text_scores  t ON t.product_id = p.id
+LEFT JOIN image_scores i ON i.product_id = p.id
+WHERE p.status = 'ready' AND p.is_deleted = false
+  AND ($category    IS NULL OR p.category_id = $category)
+  AND ($price_max   IS NULL OR p.purchase_price <= $price_max)
+  /* + остальные фильтры из request body */
+ORDER BY score DESC
+LIMIT $top_k;
+```
+
+`$w_text`, `$w_image` — `HYBRID_TEXT_WEIGHT` и `HYBRID_IMAGE_WEIGHT` из env product-service (default 0.5 / 0.5; тюнятся на eval-датасете в Phase 4). Веса нормировать не обязательно — итоговый score интерпретируется относительно других кандидатов в той же выдаче, не как абсолютная вероятность.
+
+`COALESCE(..., 0)` страхует случай «у товара ещё нет text- или image-вектора» (новый товар, эмбеддер не успел). В Phase 4 в логи прокидываем долю товаров без вектора, чтобы видеть отставание embedder-а.
+
+#### Альтернативный режим: `centroid`
+
+Под env-флагом `IMAGE_EMBED_AGGREGATION=centroid` `product-service` хранит **один** image-вектор на товар вместо N. При update/delete фото вектор пересчитывается:
+
+```sql
+embedding = normalize(mean(image_vec_i for i in 0..image_count))
+```
+
+Тогда `product_image_embeddings.PRIMARY KEY` — это `product_id`, без `image_idx`. SQL гибрида тот же, без `MAX` и `GROUP BY`.
+
+Centroid дешевле по индексу (×N меньше строк) и вычислительно (один вызов provider-а на агрегацию не нужен — усреднение делаем сами), но размывает ракурсы. Стартуем с `per_image`, переключаемся на `centroid` если индекс по image-векторам станет узким местом по памяти/latency. Миграция между режимами — отдельный one-shot job, не runtime.
+
+#### Internal endpoint-ы
 
 | Endpoint | Кто вызывает | Что делает |
 |---|---|---|
 | `GET /products` | `stylist-service`, frontend | Обычный фильтрованный поиск по товарам |
 | `GET /products/{id}` | `stylist-service`, frontend | Полная карточка товара |
 | `GET /products/filter-options` | `stylist-service`, frontend | Реальные фасеты для брендов, категорий, размеров и т.д. |
-| `POST /internal/products/semantic-search` | `stylist-service` | Принимает query vector + filters, ищет по pgvector внутри product DB |
-| `POST /internal/products/{id}/embedding` или worker/job | internal | Пересчитывает и сохраняет embedding товара |
-
-`stylist-service` не имеет прямого доступа к product DB и не хранит копию product embeddings.
-
-#### Контракт internal endpoint-ов
+| `POST /internal/products/semantic-search` | `stylist-service` | Принимает query vector + filters, считает hybrid score (text + image) и возвращает top-k |
+| внутренние jobs `embed_product_text` / `embed_product_images` | сам `product-service` | Пересчитывают text- и image-вектора (см. ниже секцию «Поток индексации») |
 
 `POST /internal/products/semantic-search`
 
@@ -170,6 +247,11 @@ CREATE INDEX product_embeddings_hnsw
     {
       "id": "uuid",
       "score": 0.87,
+      "score_breakdown": {
+        "text": 0.81,
+        "image": 0.93,
+        "best_image_idx": 2
+      },
       "name": "Vintage Coach bag",
       "brand": "Coach",
       "category": "bags",
@@ -181,12 +263,12 @@ CREATE INDEX product_embeddings_hnsw
 ```
 
 Контракт фиксирует:
-- `vector` — ровно `dim=1536`, иначе `400 invalid_vector_dim`.
+- `vector` — ровно `MULTIMODAL_EMBED_DIM`, иначе `400 invalid_vector_dim`.
 - product-service сам отфильтровывает `is_deleted = true` и `status != 'ready'`.
-- `score` — cosine similarity, нормированный в `[0, 1]`.
+- `score` — итоговая взвешенная hybrid-метрика, нормирована в `[0, 1]` (т.к. оба слагаемых cosine-similarity в `[0, 1]` после `1 - <=>`).
+- `score_breakdown.text` / `score_breakdown.image` — компоненты до взвешивания. Используются `stylist-service` для аргументации в LLM («подошло по фото», «подошло по описанию») и в логах/метриках для тюнинга весов.
+- `score_breakdown.best_image_idx` — индекс фото, которое дало MAX image-score (`null` в `centroid`-режиме). LLM может использовать его, чтобы попросить фронт показать именно этот ракурс.
 - `highlight_fields` — короткий перечень полей, по которым товар «попал» в выборку (для аргументации LLM).
-
-`POST /internal/products/{id}/embedding` — internal-only. Используется worker-ом `product-service`, не вызывается из `stylist-service`. Описан для полноты в TODO ниже.
 
 ## Tool use
 
@@ -313,12 +395,13 @@ data: {"code": "rate_limited", "message": "..."}    # затем сразу even
 |---|---|
 | OpenAI 429 / `RateLimitError` | retry с экспоненциальным backoff (3 попытки, jitter), затем `event: error code=rate_limited` |
 | OpenAI 5xx / network timeout | retry x2, затем `event: error code=upstream_unavailable` |
+| Multimodal embed 429 / 5xx / timeout | retry x2 с backoff; затем `semantic_search` возвращает tool-error → LLM переключается на `search_products` |
 | product-service 5xx | tool вызов возвращает `{"error": "...", "retriable": true}` → LLM решает: повторить, переформулировать, ответить без подбора |
 | product-service вернул 0 товаров | tool возвращает `{"items": []}` — LLM объясняет «не нашёл» и предлагает уточнение |
 | Невалидные tool-args | tool возвращает `{"error": "validation", "schema": {...}}` — модель повторяет с правкой |
 | LLM зациклился на tool calls | hard-cap `MAX_TOOL_ITERATIONS`, далее принудительно завершаем с `tool_choice="none"` |
 | Истёк лимит пользователя | сразу `event: error code=rate_limited`, без OpenAI-запроса |
-| Истёк дневной cap эмбеддингов | `semantic_search` отвечает tool-error, LLM переключается на `search_products` |
+| Истёк дневной cap query-эмбеддингов (`QUERY_EMBED_DAILY_CAP`) | `semantic_search` отвечает tool-error, LLM переключается на `search_products` |
 | Невалидный `conversation_id` | `event: error code=bad_request` и `done` |
 
 Все retries покрыты circuit-breaker-ом: если за 60 сек > 50% запросов к OpenAI/product-service падают, временно «пробиваем» — отдаём пользователю «сервис временно недоступен» без ожидания таймаутов.
@@ -359,10 +442,13 @@ sequenceDiagram
 user request
   -> stylist-service
   -> LLM выбирает semantic_search
-  -> stylist-service делает embedding запроса через OpenAI
+  -> stylist-service делает embedding запроса через multimodal-провайдера
+     (один и тот же провайдер, что и в product-service embedder — иначе query
+      окажется в чужом векторном пространстве)
   -> stylist-service отправляет query vector в product-service
-  -> product-service ищет в product DB по pgvector + фильтрам
-  -> product-service возвращает подходящие товары или ids товаров
+  -> product-service считает hybrid score (w_text * text_cos + w_image * MAX(image_cos))
+     по pgvector + применяет фильтры
+  -> product-service возвращает подходящие товары + score_breakdown (text / image / best_image_idx)
   -> stylist-service стримит ответ + product ids на фронт
   -> frontend подгружает карточки товаров из product-service
 ```
@@ -388,14 +474,16 @@ user request
 sequenceDiagram
     participant AI as stylist-service
     participant OAI as OpenAI
+    participant ME as Multimodal Embed API
     participant PS as product-service
 
     AI->>OAI: chat (user: "что-то в духе 90-х, тёплое")
     OAI-->>AI: tool_call: semantic_search(query="90s style warm vintage", top_k=10)
-    AI->>OAI: embeddings.create(input=query)
-    OAI-->>AI: vector(1536)
+    AI->>ME: embed(text=query)
+    ME-->>AI: vector(MULTIMODAL_EMBED_DIM)
     AI->>PS: POST /internal/products/semantic-search (vector, top_k, filters)
-    PS-->>AI: [products...]
+    PS->>PS: hybrid SQL: text_cos + MAX(image_cos), фильтры, ORDER BY score
+    PS-->>AI: [products + score_breakdown...]
     AI->>OAI: tool_result(products)
     OAI-->>AI: stream of tokens
 ```
@@ -421,22 +509,57 @@ sequenceDiagram
 
 ### Поток 4. Индексация эмбеддингов в product-service
 
+Два независимых пайплайна — текстовый и image. Оба используют **одну и ту же** multimodal-модель (вариант B), поэтому полученные векторы сравнимы между собой и с query-вектором из `ai-service`.
+
+#### 4a. Text-эмбеддинги
+
 ```mermaid
 sequenceDiagram
-    participant W as product embedding worker
+    participant W as product-text-embedder (job)
     participant DB as product DB
-    participant OAI as OpenAI
+    participant ME as Multimodal Embed API
 
-    loop по расписанию или после изменения товара
-        W->>DB: SELECT id, generate_product_text(id) FROM changed ready products
-        W->>W: compute text_hash, skip unchanged texts
-        W->>OAI: embeddings.create(input=[texts where hash changed])
-        OAI-->>W: vectors[]
-        W->>DB: UPSERT product_embeddings in product DB
+    loop по расписанию (или триггер из product write flow)
+        W->>DB: SELECT id, generate_product_text(id) FROM ready products
+        W->>W: compute text_hash, skip unchanged
+        W->>ME: embed(text=[texts where hash changed])
+        ME-->>W: vectors[]
+        W->>DB: UPSERT product_text_embeddings (product_id, embedding, text_hash)
     end
 ```
 
-Для MVP достаточно scheduled worker-а в `product-service` или отдельного internal indexing job-а, который пишет в product DB. Позже можно заменить polling на событие из product write flow.
+#### 4b. Image-эмбеддинги
+
+Цепляется к уже существующему job-queue `product-service` (`upload_product_images`, `delete_product_images` — см. `src/jobs/`). На MVP — два хука и один backfill-job:
+
+1. **Hook в `upload_product_images` job.** После успешного `put_object` всех вариантов в S3 — enqueue нового job `embed_product_images { product_id, image_indices: [...] }`.
+2. **Hook в `delete_product_images` (по индексу или по продукту).** После удаления из S3 — `DELETE FROM product_image_embeddings WHERE product_id=$1 AND image_idx = ANY($2)` (или по `product_id` для cascade).
+3. **Backfill-job `reindex_product_images`** — single-shot, перебирает `ready` товары, у которых строк в `product_image_embeddings` меньше, чем `product.image_count`, и догоняет.
+
+```mermaid
+sequenceDiagram
+    participant U as upload_product_images job
+    participant E as embed_product_images job
+    participant S3 as S3
+    participant DB as product DB
+    participant ME as Multimodal Embed API
+
+    U->>S3: put_object thumb/medium/full.webp по индексам
+    U->>DB: INSERT job embed_product_images(product_id, image_indices)
+    Note over E: воркер берёт enqueued job
+    E->>S3: GET medium.webp по каждому image_idx
+    E->>E: compute image_hash, skip unchanged
+    E->>ME: embed(image=[bytes_or_url where hash changed])
+    ME-->>E: vectors[]
+    E->>DB: UPSERT product_image_embeddings (product_id, image_idx, embedding, image_hash)
+```
+
+Решение «base64 vs presigned URL для отправки картинки в API провайдера» — за конкретным провайдером:
+- Cohere / Voyage принимают base64.
+- Vertex `multimodalembedding@001` принимает GCS URI или base64.
+- Локальный CLIP/SigLIP — bytes напрямую.
+
+В режиме `IMAGE_EMBED_AGGREGATION=centroid` `embed_product_images` после получения вектора каждого фото не пишет N строк, а пересчитывает один центроид всех векторов товара и UPSERT-ит единственную строку. Промежуточные image-векторы можно держать в памяти job-а или сохранять отдельно для отладки — на MVP в памяти.
 
 ## Примеры разговоров
 
@@ -462,8 +585,9 @@ sequenceDiagram
 
 **Внутри:**
 - `semantic_search(query="90s style warm clothing vintage", top_k=10)`
-- `stylist-service` получил query embedding, `product-service` нашёл 10 ближайших товаров через pgvector с учётом правил витрины
-- LLM выбрал релевантные
+- `stylist-service` получил query embedding через multimodal-провайдера
+- `product-service` посчитал hybrid score: text-similarity по `generate_product_text` + MAX по фото товара, отфильтровал по правилам витрины и вернул топ-10 с `score_breakdown`
+- LLM использует `score_breakdown` для аргументации («подошло по описанию», «подошло по виду»)
 
 **Assistant:**
 > Под «тёплое из 90-х» хорошо подойдут:
@@ -505,8 +629,9 @@ sequenceDiagram
   - `max_tokens` на ответ
   - история обрезается до последних K сообщений + системный промпт
   - максимум T итераций tool-use в одном ответе (на случай зацикливания)
-  - дневной cap на query embeddings в `stylist-service`
-  - дневной cap на product embeddings worker в `product-service`
+  - `QUERY_EMBED_DAILY_CAP` — дневной cap на query embeddings (multimodal-провайдер) в `stylist-service`
+  - дневные cap-ы на text- и image-embedder в `product-service` (text- и image-цены у multimodal-провайдеров обычно отличаются — лимиты раздельные)
+  - `image_hash` и `text_hash` — пересчёт только при изменении контента, неизменённые товары не тратят квоту
 - **Валидация tool-args** через Pydantic — никаких сырых параметров от LLM в SQL/HTTP.
 - **Internal endpoint-ы product-service** прикрыты `X-Internal-Token` (shared secret), нгинкс не проксирует `/internal/*` наружу.
 
@@ -521,8 +646,10 @@ sequenceDiagram
 | `stylist_chat_messages_total` | counter | `result` (`ok`, `rate_limited`, `error`) |
 | `stylist_chat_duration_seconds` | histogram | — (от запроса до `done`) |
 | `stylist_tool_calls_total` | counter | `tool`, `result` |
-| `stylist_openai_tokens_total` | counter | `model`, `kind` (`prompt`/`completion`/`embedding`) |
+| `stylist_openai_tokens_total` | counter | `model`, `kind` (`prompt`/`completion`) |
 | `stylist_openai_request_duration_seconds` | histogram | `model`, `kind` |
+| `stylist_embed_requests_total` | counter | `provider`, `result` |
+| `stylist_embed_request_duration_seconds` | histogram | `provider` |
 | `stylist_product_service_requests_total` | counter | `endpoint`, `status` |
 | `stylist_active_conversations` | gauge | — |
 | `stylist_rate_limit_hits_total` | counter | `reason` |
@@ -563,7 +690,7 @@ Tracing: пробрасываем `X-Request-Id` (если nginx уже выст
   }
   ```
 
-- Прод-секреты (`OPENAI_API_KEY`, `INTERNAL_API_TOKEN`) — только через `.env`/secret store, не коммитим.
+- Прод-секреты (`OPENAI_API_KEY`, `MULTIMODAL_EMBED_API_KEY`, `INTERNAL_API_TOKEN`) — только через `.env`/secret store, не коммитим.
 - Healthcheck в compose: `curl -f http://localhost:8084/healthz`. `/healthz` не зовёт OpenAI и product-service, отвечает 200, если процесс жив.
 
 ## Тесты
@@ -577,7 +704,7 @@ Tracing: пробрасываем `X-Request-Id` (если nginx уже выст
 
 - Каталог в БД на русском (товары, теги, категории, бренды).
 - Системный промпт фиксирует: отвечать по-русски, цены в ₽.
-- При семантическом поиске запрос эмбеддим как есть; `text-embedding-3-small` корректно работает с многоязычными запросами.
+- При семантическом поиске запрос эмбеддим как есть. Выбранный multimodal-провайдер должен поддерживать многоязычность (Cohere `embed-multilingual-v3.0` — да; Voyage и Vertex `multimodalembedding@001` — да; CLIP — англ. ориентированный, для русских запросов лучше M-CLIP / SigLIP-multilingual вариант). Это критерий при выборе модели в Phase 0b.
 - Если когда-то понадобится английский интерфейс — это правка только промпта и фронта; продуктовые данные остаются локализованными в одной языковой версии.
 
 ## Что вне MVP
@@ -590,27 +717,53 @@ Tracing: пробрасываем `X-Request-Id` (если nginx уже выст
 - Метрики качества рекомендаций (CTR / add-to-cart по сессиям).
 - Distributed tracing (OTel).
 - Multi-tenant rate-limit (per role, per plan).
+- **«Найди по фото»** — пользователь грузит картинку, чат подбирает похожие товары. Инфраструктура (multimodal joint space + image-вектора каждого фото) уже есть после Phase 0b, нужен только новый tool `image_search` и UI для аплоада. Откладываем как post-MVP, чтобы не разрастать MVP-scope.
 
 ## Открытые вопросы
 
 - ~~Где терминировать JWT — на nginx или в `stylist-service`?~~ **Решено:** на nginx через `auth_request` к `auth-service`, как для product/user-service. `stylist-service` читает только `X-User-Id` и `X-User-Role`.
-- В текст для эмбеддинга — включаем `description` целиком или только ключевые поля? Гипотеза: ключевые поля + первые 500 символов description. Замерим качество top-k на ручном наборе из 30 запросов.
+- ~~Раздельные пространства text/image (OpenAI text + любая image-модель) или single multimodal space?~~ **Решено:** single multimodal space (вариант B). Преимущества: cross-modal поиск (текст-запрос напрямую матчится на image-вектора товара), не нужны два разных эмбеддера в `ai-service`, общий `MULTIMODAL_EMBED_DIM` для индексных таблиц.
+- **Какой multimodal-провайдер?** Кандидаты:
+  - **Cohere Embed-3 multimodal** (`embed-multilingual-v3.0`) — multilingual из коробки, REST API, dim 1024. Стоимость средняя.
+  - **Voyage `voyage-multimodal-3`** — REST API, dim 1024. Многоязычность ограничена, требует проверки на русском каталоге.
+  - **Vertex `multimodalembedding@001`** — dim 1408, требует GCP-проекта и SA, картинки удобно слать GCS URI. Привязка к Google-стеку.
+  - **Локальный open_clip / SigLIP (multilingual вариант)** — без внешних API, работает на CPU/GPU в отдельном контейнере. Бесплатно по запросам, но добавляет инфраструктуры. Текстовый encoder ограничен короткими токен-окнами — для длинного `generate_product_text` нужно проверять truncation.
+  Решаем в Phase 0b после замера качества top-k на 30-запросном eval-датасете и оценки месячной стоимости при текущем размере каталога.
+- **Per-image (MAX) vs centroid?** Стартуем с `per_image` — лучше ловит ракурсы. Если индекс по картинкам станет узким местом по памяти/latency — переключаемся на `centroid`. Решение фиксируется по метрикам после Phase 4.
+- **`image_hash` от `medium.webp` или от raw?** Берём `medium.webp` — стабильнее (raw зависит от формата исходника, повторный re-upload того же фото не должен триггерить переиндексацию).
+- **Веса гибрида `HYBRID_TEXT_WEIGHT` / `HYBRID_IMAGE_WEIGHT`** — стартуем с 0.5 / 0.5, тюним на 30-запросном eval-датасете в Phase 4.
+- В текст для эмбеддинга — включаем `description` целиком или только ключевые поля? Гипотеза: ключевые поля + первые 500 символов description. Замерим качество top-k на ручном наборе из 30 запросов. (С multimodal моделью ограничение токенов на text-side может быть жёстче чем у OpenAI — это аргумент в пользу более компактного текста.)
 - Нужен ли re-ranking шаг после semantic_search для MVP или достаточно top-k от pgvector? Проверяем на 30-запросном наборе после Phase 4.
-- Как запускать product embeddings worker в MVP: внутри `product-service` по расписанию или отдельным internal job-контейнером? Склоняемся к internal job в составе `product-service` бинарника, активируется флагом `--mode=embedder`.
+- Как запускать product embeddings worker в MVP: внутри `product-service` по расписанию или отдельным internal job-контейнером? Склоняемся к internal job в составе `product-service` бинарника, активируется флагом `--mode=embedder`. Image-сторона лучше укладывается в существующий postgres-job-queue (`embed_product_images` job), text-сторона может быть scheduled worker.
 - Защита internal endpoint-ов: достаточно ли `X-Internal-Token` или нужен mTLS? На MVP — токен + сетевая изоляция docker network.
 
 ## TODO: product embeddings
 
 Текущее состояние в `product-service`:
 - есть helper `generate_product_text(p_product_id)`;
-- при создании/изменении товара embedding пока не считается;
-- таблицы `product_embeddings` пока нет;
+- картинки лежат в S3 в трёх вариантах (`thumb`/`medium`/`full`.webp) по пути `products/{product_id}/{n}/`, число хранится в `product.image_count`, управляются job-queue (`upload_product_images`, `delete_product_images` в `src/jobs/`);
+- при создании/изменении товара embeddings пока не считаются;
+- таблиц `product_text_embeddings` / `product_image_embeddings` пока нет;
 - `pgvector` extension пока не подключён;
 - `similar_products` есть, но это таблица для уже рассчитанных похожих пар, не хранилище embeddings.
 
-Что нужно добавить:
+Что нужно добавить (вариант B, single multimodal space):
+
+**Phase 0a (text):**
 - подключить `pgvector` в product DB;
-- добавить таблицу `product_embeddings(product_id, embedding, text_hash, updated_at)`;
-- добавить worker/job в `product-service`, который берёт `generate_product_text(id)`, считает `text_hash`, вызывает OpenAI embeddings и upsert-ит vector;
-- добавить internal endpoint `POST /internal/products/semantic-search`, который принимает query vector + filters и ищет товары через pgvector с учётом `status = ready` и `is_deleted = false`;
-- решить, когда запускать переиндексацию: scheduled worker для MVP, позже событие из product write flow.
+- добавить таблицу `product_text_embeddings(product_id, embedding vector(:dim), text_hash, updated_at)` под фиксированную `MULTIMODAL_EMBED_DIM`;
+- добавить worker/job (`--mode=text-embedder`) в `product-service`, который берёт `generate_product_text(id)`, считает `text_hash`, вызывает выбранного multimodal-провайдера в text-mode и UPSERT-ит вектор;
+- добавить internal endpoint `POST /internal/products/semantic-search` со скелетом hybrid SQL — на этом этапе `image_score = 0`, потому что image-таблица ещё пустая.
+
+**Phase 0b (image):**
+- добавить таблицу `product_image_embeddings(product_id, image_idx, embedding, image_hash, updated_at)` PK `(product_id, image_idx)`;
+- добавить новый job-kind `embed_product_images` в `src/jobs/`;
+- расширить `upload_product_images` — после успешной заливки в S3 enqueue `embed_product_images` в той же транзакции;
+- расширить `delete_product_images` — удалять соответствующие строки из `product_image_embeddings`;
+- добавить single-shot backfill `reindex_product_images` для существующих товаров;
+- хук в hybrid SQL — добавить ветку `image_scores` с `MAX` агрегацией, дополнить ответ `score_breakdown`;
+- env-флаги: `IMAGE_EMBED_AGGREGATION` (`per_image | centroid`), `HYBRID_TEXT_WEIGHT`, `HYBRID_IMAGE_WEIGHT`, `IMAGE_EMBED_DAILY_CAP`.
+
+**Общее:**
+- `MULTIMODAL_EMBED_PROVIDER` / `MULTIMODAL_EMBED_MODEL` / `MULTIMODAL_EMBED_DIM` / `MULTIMODAL_EMBED_API_KEY` — общие env, **должны совпадать** с `ai-service` (иначе query-вектор окажется в другом пространстве);
+- решить, когда запускать text-переиндексацию: scheduled worker для MVP, позже событие из product write flow. Image-переиндексация уже триггерится через job-queue на upload/delete — отдельного scheduler-а не нужно.

@@ -32,12 +32,13 @@
 ### BE — Backend / Tech
 
 **Владеет:**
-- Всем кодом `server/ai-service/` (FastAPI app, tool-use loop, конфиг, наблюдаемость).
-- Изменениями в `server/product-service/` для Phase 0: миграция pgvector, embedder job, internal endpoint `POST /internal/products/semantic-search`.
+- Всем кодом `server/ai-service/` (FastAPI app, tool-use loop, `multimodal_client`, конфиг, наблюдаемость).
+- Изменениями в `server/product-service/` для Phase 0a/0b: миграции pgvector, `MultimodalEmbedder`-клиент, text-embedder job, новый `embed_product_images` job-kind + хуки в существующие `upload_product_images` / `delete_product_images`, internal endpoint `POST /internal/products/semantic-search` с hybrid SQL.
+- **Выбором multimodal-провайдера** (Cohere / Voyage / Vertex / open_clip+SigLIP) — после спайка на eval-датасете; решение фиксируется в DESIGN.md и `.env.example` до начала миграций.
 - Системным промптом v0–v1 (содержимое — обсуждается с QA, но коммитит BE).
 - `nginx/nginx.conf` — секция `/api/stylist/`, SSE-настройки.
 - `assets/docker-compose.ai.yml`, `docker-compose.ai.prod.yml`, корневой compose.
-- Управлением секретами: `OPENAI_API_KEY`, `INTERNAL_API_TOKEN` в dev/prod env.
+- Управлением секретами: `OPENAI_API_KEY`, `MULTIMODAL_EMBED_API_KEY`, `INTERNAL_API_TOKEN` в dev/prod env.
 - Метриками Prometheus и структурированными логами.
 - Деплоем на стейдж/прод.
 
@@ -50,13 +51,14 @@
 
 **Владеет:**
 - Pytest unit-тестами (валидация tool-args, бюджет истории, conversation TTL, парсинг SSE).
-- Integration-тестами против stub product-service и замоканного OpenAI (VCR-кассеты).
-- Контрактным тестом `tests/contracts/semantic_search.json` — общий для AI и PS (поддерживает QA, читают обе стороны).
+- Integration-тестами против stub product-service, замоканного OpenAI (VCR-кассеты) и stub `MultimodalEmbedder`.
+- Контрактным тестом `tests/contracts/semantic_search.json` — общий для AI и PS, включает поле `score_breakdown` (поддерживает QA, читают обе стороны).
 - Smoke-тестом `scripts/smoke-stylist.sh` (4 примера из DESIGN.md → `event: done` без error).
-- Eval-датасетом для качества подбора: 30+ запросов с ручной разметкой (релевантно/нет), прогоны по semantic_search и search_products.
+- Eval-датасетом для качества подбора: 30+ запросов с ручной разметкой (релевантно/нет), разбит на text-преобладающие (бренд / категория / цена), vision-преобладающие (цвет / принт / силуэт) и смешанные. Прогоны по semantic_search и search_products при разных `HYBRID_TEXT_WEIGHT` / `HYBRID_IMAGE_WEIGHT` для тюнинга в Phase 4.
+- Eval-спайком в Phase 0a по выбору multimodal-провайдера: те же 30 запросов прогоняются на каждом кандидате (Cohere / Voyage / Vertex / open_clip), сравниваются recall@10 и месячная стоимость.
 - Нагрузкой: локальный load-тест на 50 RPS (для Phase 5).
 - Мониторингом качества в проде: дашборд по `stylist_*` метрикам, алерты на p95 latency и error rate.
-- Регрессионным контролем: при смене модели (gpt-4o-mini → gpt-4o) прогон evaluation датасета и сравнение метрик.
+- Регрессионным контролем: при смене chat-модели (gpt-4o-mini → gpt-4o) и при смене multimodal-провайдера прогон evaluation датасета и сравнение метрик. Смена multimodal-провайдера = полная переиндексация text + image (планируется как отдельный downtime).
 - Финальной приёмкой каждой фазы — пункт «Готово, когда…» из ROADMAP.md.
 
 **Не владеет:**
@@ -69,14 +71,15 @@
 
 | Фаза | FE | BE | QA |
 |---|---|---|---|
-| **P0** product-service pgvector | — | миграция, embedder job, `/internal/semantic-search`, защита X-Internal-Token | unit-тесты на `text_hash` стабильность; контроль, что `is_deleted/!ready` исключаются; latency-замер top-10 < 100ms p95 |
+| **P0a** pgvector + text embeddings | — | спайк по выбору multimodal-провайдера, миграция `product_text_embeddings`, `MultimodalEmbedder`-клиент, text-embedder job, `/internal/semantic-search` v0 (только text) | eval-спайк на 30 запросов по 4 кандидатам провайдера; unit-тесты `text_hash` стабильность; контроль `is_deleted/!ready`; latency top-10 < 100ms p95 |
+| **P0b** image embeddings | — | миграция `product_image_embeddings`, `embed_product_images` job, хуки в upload/delete, `reindex_product_images` backfill, hybrid SQL + `score_breakdown` | unit-тесты `image_hash`; e2e на upload/delete → строки появляются/пропадают; latency top-10 < 150ms p95 при `image_count=4`; контроль graceful degradation при пустой image-таблице |
 | **P1** каркас ai-service | стаб-страница `/stylist` (заглушка), проверить, что 401 без JWT | `pyproject.toml`, Dockerfile, FastAPI скелет, `/healthz`, `/metrics`, nginx-блок, compose | health-check тест, e2e: `whoami` без/с JWT |
 | **P2** chat без tools | SSE-клиент, рендер потока токенов, базовый UI чата, `POST/DELETE /conversations` | conversation store, OpenAI-обёртка, SSE handler, budget trim, системный промпт v0 | unit на budget/TTL, integration с моком OpenAI, ручной smoke «привет» |
 | **P3** точечный поиск | `event: products` → подгрузка карточек через product-service, рендер списка | httpx-клиент, tools `search_products`/`list_facets`, tool-use loop, hard-cap iterations | integration: stub PS → пример 1; контроль, что невалидный tag не вешает loop |
-| **P4** semantic + drill-in | follow-up-сообщения с подгрузкой контекста, drill-in UX (ссылка на «расскажи подробнее про N») | `semantic_search`, `get_product_details`, `last_product_ids`, embeddings cap | контрактный тест `semantic_search.json`, eval-датасет 30 запросов, примеры 2 и 3 в smoke |
-| **P5** лимиты и устойчивость | UX rate_limited / upstream_unavailable баннеры, отображение `event: error` | rate-limit, circuit-breaker, метрики, логи без user content на info | load-тест 50 RPS, отключение PS/OpenAI и проверка graceful degradation |
-| **P6** релиз | прод-сборка фронта, проверка прод-конфига | прод-compose, `.env.example`, README, secrets в проде | прохождение smoke на проде, дашборд метрик зелёный |
-| **P7+** post-MVP | интеграция с историей просмотров, feedback UI (лайк/дизлайк) | Redis для истории, push-обновление эмбеддингов, re-ranking | расширение eval-датасета, A/B-инфра, метрики качества рекомендаций |
+| **P4** hybrid semantic + drill-in | follow-up-сообщения с подгрузкой контекста, drill-in UX (ссылка на «расскажи подробнее про N»); опционально — отображение `score_breakdown` (бэйджи «по описанию» / «по виду») | `multimodal_client.py`, `semantic_search`, `get_product_details`, `last_product_ids`, query embed cap; парсинг `score_breakdown` для аргументации в LLM | контрактный тест `semantic_search.json` со `score_breakdown`; eval-датасет 30 запросов в трёх категориях (text / vision / mixed); тюнинг весов; примеры 2 и 3 в smoke |
+| **P5** лимиты и устойчивость | UX rate_limited / upstream_unavailable баннеры, отображение `event: error` | rate-limit, circuit-breaker (отдельно для OpenAI и multimodal embed), метрики, логи без user content на info | load-тест 50 RPS, отключение PS/OpenAI/multimodal-embed и проверка graceful degradation |
+| **P6** релиз | прод-сборка фронта, проверка прод-конфига | прод-compose, `.env.example` (включая `MULTIMODAL_*`), README, secrets в проде | прохождение smoke на проде, дашборд метрик зелёный |
+| **P7+** post-MVP | интеграция с историей просмотров, feedback UI (лайк/дизлайк), UI для «найди по фото» (image upload) | Redis для истории, push-обновление text-эмбеддингов, image-search tool, re-ranking | расширение eval-датасета (включая визуальные image-queries), A/B-инфра, метрики качества рекомендаций |
 
 ---
 
@@ -91,19 +94,25 @@
 | Tool JSON schemas | I | R/A | C |
 | Чат-страница и UI | R/A | C | C |
 | `event: products` → карточки на фронте | R/A | C | I |
-| Миграция pgvector | I | R/A | C |
+| Миграция pgvector + `product_text_embeddings` | I | R/A | C |
+| Миграция `product_image_embeddings` + хуки в upload/delete | I | R/A | C |
+| Выбор multimodal-провайдера (Cohere / Voyage / Vertex / open_clip) | I | R | A |
+| `MultimodalEmbedder`-клиент (PS и AI) | I | R/A | C |
+| Hybrid SQL и `score_breakdown` | I | R/A | C |
 | `/internal/semantic-search` контракт | I | R/A | C |
-| Контрактный тест `semantic_search.json` | I | C | R/A |
-| Eval-датасет (30+ запросов) | I | C | R/A |
+| Контрактный тест `semantic_search.json` (со `score_breakdown`) | I | C | R/A |
+| Eval-датасет (30+ запросов: text / vision / mixed) | I | C | R/A |
+| Тюнинг `HYBRID_*_WEIGHT` | I | C | R/A |
 | Load-тест | I | C | R/A |
 | Smoke-скрипт `scripts/smoke-stylist.sh` | I | C | R/A |
 | nginx `/api/stylist/` location | I | R/A | C |
 | docker-compose dev/prod | I | R/A | I |
-| `.env.example` и секреты | I | R/A | I |
+| `.env.example` и секреты (OpenAI + Multimodal Embed) | I | R/A | I |
 | README в `ai-service` | I | R/A | C |
 | Прод-деплой | I | R/A | C |
 | Дашборд метрик и алерты | I | C | R/A |
-| Промпт-регрессии при смене модели | I | C | R/A |
+| Промпт-регрессии при смене chat-модели | I | C | R/A |
+| Полная переиндексация при смене multimodal-провайдера | I | R | A |
 
 ---
 
@@ -119,9 +128,10 @@ flowchart LR
     end
 
     subgraph BE_QA["BE ↔ QA"]
-        S3["Контракт semantic_search<br/>(JSON-фикстура)"]
+        S3["Контракт semantic_search<br/>+ score_breakdown<br/>(JSON-фикстура)"]
         S4["Метрики и их лейблы<br/>(чтобы алерты привязать)"]
-        S5["Тестовая среда<br/>(stub PS, VCR-кассеты)"]
+        S5["Тестовая среда<br/>(stub PS, VCR-кассеты,<br/>stub MultimodalEmbedder)"]
+        S8["Выбор multimodal-провайдера<br/>(eval-спайк до P0a)"]
     end
 
     subgraph FE_QA["FE ↔ QA"]
@@ -130,7 +140,7 @@ flowchart LR
     end
 
     classDef joint fill:#fef9c3,stroke:#ca8a04,color:#000
-    class S1,S2,S3,S4,S5,S6,S7 joint
+    class S1,S2,S3,S4,S5,S6,S7,S8 joint
 ```
 
 Каждая стыковка — отдельный мини-контракт, фиксируется PR-ом или строчкой в `DESIGN.md` ещё до того, как кто-то начинает писать соответствующий код.
@@ -178,7 +188,7 @@ QA — последняя дверь. Без её «да» фаза не зак�
 
 Не равный, и это нормально.
 
-- BE — самый большой объём (≈ 60% работы по объёму кода). Сосредоточен на P0 + P2–P5.
+- BE — самый большой объём (≈ 60% работы по объёму кода). Сосредоточен на P0a + P0b + P2–P5.
 - FE — ≈ 25%. Самая нагруженная фаза — P2 (новый UI чата) и P3 (карточки + `event: products`).
 - QA — ≈ 15% по коду, но критическая роль на P4 (eval) и P5 (нагрузка) и постоянная роль в каждой приёмке.
 
