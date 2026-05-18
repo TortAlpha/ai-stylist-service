@@ -12,12 +12,12 @@
 
 ## Phase 0a — pgvector + text embeddings в product-service
 
-Фундамент под `semantic_search`. Phase 4 без него заблокирована (можно делать параллельно с Phase 1–3). Здесь же фиксируется выбор multimodal-провайдера — он общий и для text-, и для image-стороны (вариант B, single multimodal space).
+Фундамент под `semantic_search`. Phase 4 без него заблокирована (можно делать параллельно с Phase 1–3). Multimodal-провайдер уже зафиксирован (Cohere `embed-multilingual-v3.0`, dim 1024) — он общий и для text-, и для image-стороны (вариант B, single multimodal space).
 
 **Артефакты:**
-- **Решение по multimodal-провайдеру.** До начала миграций — спайк на 30-запросном eval-датасете: прогнать кандидатов (Cohere Embed-3 multilingual / Voyage `voyage-multimodal-3` / Vertex `multimodalembedding@001` / open_clip+SigLIP-multilingual), сравнить top-k качество и месячную стоимость на текущем размере каталога. Зафиксировать `MULTIMODAL_EMBED_PROVIDER`, `MULTIMODAL_EMBED_MODEL`, `MULTIMODAL_EMBED_DIM` в `.env.example`.
+- **Провайдер зафиксирован** до начала фазы: Cohere `embed-multilingual-v3.0`, dim 1024 (см. DESIGN.md → «Открытые вопросы»). В `.env.example` обоих сервисов проставить `MULTIMODAL_EMBED_PROVIDER=cohere`, `MULTIMODAL_EMBED_MODEL=embed-multilingual-v3.0`, `MULTIMODAL_EMBED_DIM=1024`. Eval-спайк на 30-запросном датасете остаётся — но не для выбора провайдера, а для подтверждения recall@10 на русском каталоге и стартовых значений `HYBRID_TEXT_WEIGHT` / `HYBRID_IMAGE_WEIGHT`.
 - **PS** `migrations/runtime/NNNN_pgvector_text.sql`: `CREATE EXTENSION vector` + таблица `product_text_embeddings(product_id PK REFERENCES product(id) ON DELETE CASCADE, embedding vector(:dim), text_hash TEXT, updated_at TIMESTAMPTZ)` + `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)`. `:dim` подставляется из `MULTIMODAL_EMBED_DIM` на момент применения.
-- **PS** `src/embeddings/multimodal_client.rs` (новый): абстракция `MultimodalEmbedder` с `embed_text(&[String]) -> Vec<Vec<f32>>` и `embed_image(&[Bytes]) -> Vec<Vec<f32>>`. Реализация под выбранного провайдера (плюс mock для тестов).
+- **PS** `src/embeddings/multimodal_client.rs` (новый): абстракция `MultimodalEmbedder` с `embed_text(&[String]) -> Vec<Vec<f32>>` и `embed_image(&[Bytes]) -> Vec<Vec<f32>>`. Реализация под Cohere `embed-multilingual-v3.0` (REST, base64 для картинок), плюс mock для тестов. Абстракция нужна на случай смены провайдера post-MVP — но это разовая операция с полной переиндексацией, не runtime-переключение.
 - **PS** `src/jobs/text_embedder.rs` (новый): SELECT всех `status='ready' AND is_deleted=false` товаров, для каждого считает `text_hash` от `generate_product_text(id)`, пропускает несменившиеся, батчем зовёт `MultimodalEmbedder.embed_text`, UPSERT в `product_text_embeddings`.
 - **PS** запуск: режим `--mode=text-embedder` у того же бинарника + переменные `MULTIMODAL_EMBED_*`, `TEXT_EMBEDDER_BATCH_SIZE` (default 64), `TEXT_EMBEDDER_INTERVAL_SECONDS` (default 600), `TEXT_EMBEDDER_DAILY_CAP`.
 - **PS** `POST /internal/products/semantic-search` (handler + repo + контракт из DESIGN.md). На этой фазе `image_score = 0` (image-таблицы ещё нет), `score = HYBRID_TEXT_WEIGHT * text_cos`. Защита `X-Internal-Token`. В nginx наружу не проксируется.
@@ -65,7 +65,7 @@
 Минимальный сервис, который поднимается, проксируется через nginx и проходит auth.
 
 **Артефакты:**
-- **AI** `pyproject.toml` (fastapi, uvicorn[standard], openai, httpx, pydantic, pydantic-settings, sse-starlette, structlog, prometheus_client, tiktoken; SDK выбранного multimodal-провайдера — `cohere` / `voyageai` / `google-cloud-aiplatform` / `open_clip_torch` — добавляется в Phase 4 вместе с `MultimodalEmbedder`-клиентом; dev: pytest, pytest-asyncio, pytest-httpserver, ruff, mypy).
+- **AI** `pyproject.toml` (fastapi, uvicorn[standard], openai, httpx, pydantic, pydantic-settings, sse-starlette, structlog, prometheus_client, tiktoken; `cohere` SDK добавляется в Phase 4 вместе с `MultimodalEmbedder`-клиентом; dev: pytest, pytest-asyncio, pytest-httpserver, ruff, mypy).
 - **AI** `Dockerfile` (multi-stage, неприв. пользователь, `CMD uvicorn ai_service.main:app --port 8084`).
 - **AI** `assets/docker-compose.ai.yml` + `docker-compose.ai.prod.yml` (по образцу product-service).
 - **AI** `src/ai_service/`: `main.py` (FastAPI app + lifespan + `/healthz` + `/metrics`), `config.py` (pydantic-settings), `auth.py` (зависимость `current_user` из `X-User-Id`/`X-User-Role`), `observability.py` (structlog setup, request_id middleware).
@@ -127,7 +127,7 @@
 Размытые запросы и контекстные follow-up. Зависит от Phase 0a **и** 0b.
 
 **Артефакты:**
-- **AI** `embeddings/multimodal_client.py` — обёртка над выбранным провайдером с `embed_text(query)`. Реализация под `MULTIMODAL_EMBED_PROVIDER` (фиксированного в Phase 0a). Используется одна и та же модель и же dim, что и в `product-service` — иначе query окажется в чужом пространстве.
+- **AI** `embeddings/multimodal_client.py` — обёртка над Cohere `embed-multilingual-v3.0` с `embed_text(query)`. Используется одна и та же модель и dim (1024), что и в `product-service` — иначе query окажется в чужом пространстве.
 - **AI** `llm/tools.py` — добавить `semantic_search` (берёт query string, считает embedding через `multimodal_client`, кладёт vector в `POST /internal/products/semantic-search`) и `get_product_details`.
 - **AI** в `Conversation` — поле `last_product_ids` (обновляется после каждого ответа с товарами) + инжект в системный контекст следующего хода `"Ранее показанные товары: [...]"`.
 - **AI** `QUERY_EMBED_DAILY_CAP` — счётчик in-memory; при упоре tool возвращает error, LLM переключается на `search_products`.

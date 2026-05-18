@@ -34,7 +34,7 @@
 **Владеет:**
 - Всем кодом `server/ai-service/` (FastAPI app, tool-use loop, `multimodal_client`, конфиг, наблюдаемость).
 - Изменениями в `server/product-service/` для Phase 0a/0b: миграции pgvector, `MultimodalEmbedder`-клиент, text-embedder job, новый `embed_product_images` job-kind + хуки в существующие `upload_product_images` / `delete_product_images`, internal endpoint `POST /internal/products/semantic-search` с hybrid SQL.
-- **Выбором multimodal-провайдера** (Cohere / Voyage / Vertex / open_clip+SigLIP) — после спайка на eval-датасете; решение фиксируется в DESIGN.md и `.env.example` до начала миграций.
+- **Реализацией клиента к multimodal-провайдеру** (Cohere `embed-multilingual-v3.0`, dim 1024 — выбор зафиксирован в DESIGN.md). Если post-MVP встанет вопрос о смене провайдера — BE готовит миграцию с полной переиндексацией.
 - Системным промптом v0–v1 (содержимое — обсуждается с QA, но коммитит BE).
 - `nginx/nginx.conf` — секция `/api/stylist/`, SSE-настройки.
 - `assets/docker-compose.ai.yml`, `docker-compose.ai.prod.yml`, корневой compose.
@@ -55,7 +55,7 @@
 - Контрактным тестом `tests/contracts/semantic_search.json` — общий для AI и PS, включает поле `score_breakdown` (поддерживает QA, читают обе стороны).
 - Smoke-тестом `scripts/smoke-stylist.sh` (4 примера из DESIGN.md → `event: done` без error).
 - Eval-датасетом для качества подбора: 30+ запросов с ручной разметкой (релевантно/нет), разбит на text-преобладающие (бренд / категория / цена), vision-преобладающие (цвет / принт / силуэт) и смешанные. Прогоны по semantic_search и search_products при разных `HYBRID_TEXT_WEIGHT` / `HYBRID_IMAGE_WEIGHT` для тюнинга в Phase 4.
-- Eval-спайком в Phase 0a по выбору multimodal-провайдера: те же 30 запросов прогоняются на каждом кандидате (Cohere / Voyage / Vertex / open_clip), сравниваются recall@10 и месячная стоимость.
+- Eval-спайком в Phase 0a по подтверждению качества Cohere `embed-multilingual-v3.0` на русском каталоге: те же 30 запросов прогоняются на выбранном провайдере, измеряется recall@10 и стартовые `HYBRID_TEXT_WEIGHT` / `HYBRID_IMAGE_WEIGHT`. Если recall@10 окажется неудовлетворительным — поднимать вопрос смены провайдера (требует пересмотра DESIGN.md и downtime для переиндексации).
 - Нагрузкой: локальный load-тест на 50 RPS (для Phase 5).
 - Мониторингом качества в проде: дашборд по `stylist_*` метрикам, алерты на p95 latency и error rate.
 - Регрессионным контролем: при смене chat-модели (gpt-4o-mini → gpt-4o) и при смене multimodal-провайдера прогон evaluation датасета и сравнение метрик. Смена multimodal-провайдера = полная переиндексация text + image (планируется как отдельный downtime).
@@ -71,7 +71,7 @@
 
 | Фаза | FE | BE | QA |
 |---|---|---|---|
-| **P0a** pgvector + text embeddings | — | спайк по выбору multimodal-провайдера, миграция `product_text_embeddings`, `MultimodalEmbedder`-клиент, text-embedder job, `/internal/semantic-search` v0 (только text) | eval-спайк на 30 запросов по 4 кандидатам провайдера; unit-тесты `text_hash` стабильность; контроль `is_deleted/!ready`; latency top-10 < 100ms p95 |
+| **P0a** pgvector + text embeddings | — | миграция `product_text_embeddings` (vector(1024)), `MultimodalEmbedder`-клиент под Cohere, text-embedder job, `/internal/semantic-search` v0 (только text) | eval-спайк на 30 запросов для подтверждения качества Cohere `embed-multilingual-v3.0` на русском каталоге; unit-тесты `text_hash` стабильность; контроль `is_deleted/!ready`; latency top-10 < 100ms p95 |
 | **P0b** image embeddings | — | миграция `product_image_embeddings`, `embed_product_images` job, хуки в upload/delete, `reindex_product_images` backfill, hybrid SQL + `score_breakdown` | unit-тесты `image_hash`; e2e на upload/delete → строки появляются/пропадают; latency top-10 < 150ms p95 при `image_count=4`; контроль graceful degradation при пустой image-таблице |
 | **P1** каркас ai-service | стаб-страница `/stylist` (заглушка), проверить, что 401 без JWT | `pyproject.toml`, Dockerfile, FastAPI скелет, `/healthz`, `/metrics`, nginx-блок, compose | health-check тест, e2e: `whoami` без/с JWT |
 | **P2** chat без tools | SSE-клиент, рендер потока токенов, базовый UI чата, `POST/DELETE /conversations` | conversation store, OpenAI-обёртка, SSE handler, budget trim, системный промпт v0 | unit на budget/TTL, integration с моком OpenAI, ручной smoke «привет» |
@@ -96,7 +96,7 @@
 | `event: products` → карточки на фронте | R/A | C | I |
 | Миграция pgvector + `product_text_embeddings` | I | R/A | C |
 | Миграция `product_image_embeddings` + хуки в upload/delete | I | R/A | C |
-| Выбор multimodal-провайдера (Cohere / Voyage / Vertex / open_clip) | I | R | A |
+| Выбор multimodal-провайдера (зафиксирован: Cohere `embed-multilingual-v3.0`) | I | R/A | C |
 | `MultimodalEmbedder`-клиент (PS и AI) | I | R/A | C |
 | Hybrid SQL и `score_breakdown` | I | R/A | C |
 | `/internal/semantic-search` контракт | I | R/A | C |
@@ -131,7 +131,7 @@ flowchart LR
         S3["Контракт semantic_search<br/>+ score_breakdown<br/>(JSON-фикстура)"]
         S4["Метрики и их лейблы<br/>(чтобы алерты привязать)"]
         S5["Тестовая среда<br/>(stub PS, VCR-кассеты,<br/>stub MultimodalEmbedder)"]
-        S8["Выбор multimodal-провайдера<br/>(eval-спайк до P0a)"]
+        S8["Eval-качества Cohere<br/>на русском каталоге<br/>(спайк в P0a)"]
     end
 
     subgraph FE_QA["FE ↔ QA"]

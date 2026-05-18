@@ -7,7 +7,7 @@
 - **Python 3.12 + FastAPI + Uvicorn (uvloop)** — async, чтобы дёшево держать длинные SSE-стримы.
 - **OpenAI Python SDK ≥ 1.30** — `chat.completions.create(stream=True)` с tool use. OpenAI используется **только** для chat-completion.
   - Chat-модель по умолчанию: `gpt-4o-mini` (дешёвая для tool-use loop), эскалация на `gpt-4o` через env при необходимости.
-- **Multimodal embedding-модель** — единое векторное пространство для текста и изображений товаров. Той же моделью считаются: (а) text-вектор товара из `generate_product_text`, (б) image-вектор каждого фото товара (по `medium.webp`), (в) query-вектор пользовательского сообщения в `ai-service`. Провайдер фиксируется в Phase 0b после замера качества/стоимости — кандидаты: Cohere Embed-3 multimodal, Voyage `voyage-multimodal-3`, Vertex `multimodalembedding@001`, локальный open_clip / SigLIP. Размерность (`MULTIMODAL_EMBED_DIM`) — параметр выбранной модели; pgvector-таблицы создаются под фиксированную dim. OpenAI text-embedding для query/индексации **не используется** — это ломало бы общее пространство с image-векторами.
+- **Multimodal embedding-модель** — **Cohere Embed-3 multimodal** (`embed-multilingual-v3.0`, dim 1024) через REST API. Единое векторное пространство для текста и изображений товаров: одной и той же моделью считаются (а) text-вектор товара из `generate_product_text`, (б) image-вектор каждого фото товара (по `medium.webp`), (в) query-вектор пользовательского сообщения в `ai-service`. Картинки шлются как base64. Выбор зафиксирован до начала Phase 0a (см. «Открытые вопросы»); eval-спайк на 30 запросах в Phase 0a подтверждает recall@10 на русском каталоге и тюнит `HYBRID_*_WEIGHT`, но провайдера уже не меняет. pgvector-таблицы создаются под `vector(1024)` — менять dim потом нельзя без пересоздания таблиц. OpenAI text-embedding для query/индексации **не используется** — это ломало бы общее пространство с image-векторами.
 - **httpx (async)** — клиент к `product-service`: таймауты, exponential backoff, connection pool.
 - **sse-starlette** — SSE-стрим в браузер с keep-alive ping.
 - **Pydantic v2** — валидация tool-args от LLM и схем входящих/исходящих сообщений.
@@ -65,11 +65,11 @@ server/ai-service/
 | `OPENAI_API_KEY` | — | Обязательно (только chat) |
 | `OPENAI_CHAT_MODEL` | `gpt-4o-mini` | Можно переопределить на `gpt-4o` |
 | `OPENAI_REQUEST_TIMEOUT_SECONDS` | `30` | Таймаут одного OpenAI chat-вызова |
-| `MULTIMODAL_EMBED_PROVIDER` | — | Один из: `cohere`, `voyage`, `vertex`, `local_clip`. Фиксируется в Phase 0b. Должен совпадать с `product-service` |
-| `MULTIMODAL_EMBED_MODEL` | — | Имя модели у выбранного провайдера (например, `embed-multilingual-v3.0` для Cohere) |
-| `MULTIMODAL_EMBED_DIM` | — | Размерность вектора. Должна совпадать с dim таблиц `product_text_embeddings` / `product_image_embeddings` |
-| `MULTIMODAL_EMBED_API_KEY` | — | Секрет провайдера (для `local_clip` — пусто, модель грузится в процесс) |
-| `MULTIMODAL_EMBED_BASE_URL` | — | Опционально, для self-hosted эндпоинтов |
+| `MULTIMODAL_EMBED_PROVIDER` | `cohere` | Зафиксирован. Должен совпадать с `product-service` (иначе query-вектор окажется в чужом пространстве) |
+| `MULTIMODAL_EMBED_MODEL` | `embed-multilingual-v3.0` | Cohere Embed-3 multimodal, multilingual |
+| `MULTIMODAL_EMBED_DIM` | `1024` | Совпадает с dim таблиц `product_text_embeddings` / `product_image_embeddings`. Менять нельзя без пересоздания таблиц |
+| `MULTIMODAL_EMBED_API_KEY` | — | Секрет Cohere, обязателен в проде |
+| `MULTIMODAL_EMBED_BASE_URL` | — | Опционально, для self-hosted прокси перед Cohere API |
 | `MULTIMODAL_EMBED_TIMEOUT_SECONDS` | `15` | Таймаут одного embed-вызова |
 | `PRODUCT_SERVICE_URL` | `http://sc-product-service:8081` | |
 | `PRODUCT_SERVICE_TIMEOUT_SECONDS` | `5` | |
@@ -704,7 +704,7 @@ Tracing: пробрасываем `X-Request-Id` (если nginx уже выст
 
 - Каталог в БД на русском (товары, теги, категории, бренды).
 - Системный промпт фиксирует: отвечать по-русски, цены в ₽.
-- При семантическом поиске запрос эмбеддим как есть. Выбранный multimodal-провайдер должен поддерживать многоязычность (Cohere `embed-multilingual-v3.0` — да; Voyage и Vertex `multimodalembedding@001` — да; CLIP — англ. ориентированный, для русских запросов лучше M-CLIP / SigLIP-multilingual вариант). Это критерий при выборе модели в Phase 0b.
+- При семантическом поиске запрос эмбеддим как есть через Cohere `embed-multilingual-v3.0` — он multilingual из коробки (100+ языков, русский в том числе). Это и было ключевым критерием при выборе провайдера.
 - Если когда-то понадобится английский интерфейс — это правка только промпта и фронта; продуктовые данные остаются локализованными в одной языковой версии.
 
 ## Что вне MVP
@@ -723,12 +723,12 @@ Tracing: пробрасываем `X-Request-Id` (если nginx уже выст
 
 - ~~Где терминировать JWT — на nginx или в `stylist-service`?~~ **Решено:** на nginx через `auth_request` к `auth-service`, как для product/user-service. `stylist-service` читает только `X-User-Id` и `X-User-Role`.
 - ~~Раздельные пространства text/image (OpenAI text + любая image-модель) или single multimodal space?~~ **Решено:** single multimodal space (вариант B). Преимущества: cross-modal поиск (текст-запрос напрямую матчится на image-вектора товара), не нужны два разных эмбеддера в `ai-service`, общий `MULTIMODAL_EMBED_DIM` для индексных таблиц.
-- **Какой multimodal-провайдер?** Кандидаты:
-  - **Cohere Embed-3 multimodal** (`embed-multilingual-v3.0`) — multilingual из коробки, REST API, dim 1024. Стоимость средняя.
-  - **Voyage `voyage-multimodal-3`** — REST API, dim 1024. Многоязычность ограничена, требует проверки на русском каталоге.
-  - **Vertex `multimodalembedding@001`** — dim 1408, требует GCP-проекта и SA, картинки удобно слать GCS URI. Привязка к Google-стеку.
-  - **Локальный open_clip / SigLIP (multilingual вариант)** — без внешних API, работает на CPU/GPU в отдельном контейнере. Бесплатно по запросам, но добавляет инфраструктуры. Текстовый encoder ограничен короткими токен-окнами — для длинного `generate_product_text` нужно проверять truncation.
-  Решаем в Phase 0b после замера качества top-k на 30-запросном eval-датасете и оценки месячной стоимости при текущем размере каталога.
+- ~~Какой multimodal-провайдер?~~ **Решено:** Cohere Embed-3 multimodal (`embed-multilingual-v3.0`, dim 1024) через REST API. Обоснование:
+  - **Multilingual из коробки** — каталог и запросы пользователей на русском, это было главным критерием.
+  - **Нет vendor lock в чужой облачный стек** — в отличие от Vertex (`multimodalembedding@001`), который тянет GCP-проект, SA и IAM-конфиг. Cohere — просто REST + API-ключ.
+  - **Voyage `voyage-multimodal-3`** отброшен из-за ограниченной многоязычности — потребовал бы отдельной валидации на русском.
+  - **Локальный open_clip / SigLIP-multilingual** избыточен по морокам для каталога такого размера: ~$30-50/мес за Cohere дешевле, чем поддерживать собственный inference-контейнер (RAM, batching, мониторинг OOM, опционально GPU).
+  Eval-спайк на 30 запросах в Phase 0a **остаётся** — он подтверждает recall@10 на конкретно нашем домене (винтаж/second-hand на русском) и тюнит `HYBRID_TEXT_WEIGHT` / `HYBRID_IMAGE_WEIGHT`, но провайдера уже не меняет.
 - **Per-image (MAX) vs centroid?** Стартуем с `per_image` — лучше ловит ракурсы. Если индекс по картинкам станет узким местом по памяти/latency — переключаемся на `centroid`. Решение фиксируется по метрикам после Phase 4.
 - **`image_hash` от `medium.webp` или от raw?** Берём `medium.webp` — стабильнее (raw зависит от формата исходника, повторный re-upload того же фото не должен триггерить переиндексацию).
 - **Веса гибрида `HYBRID_TEXT_WEIGHT` / `HYBRID_IMAGE_WEIGHT`** — стартуем с 0.5 / 0.5, тюним на 30-запросном eval-датасете в Phase 4.

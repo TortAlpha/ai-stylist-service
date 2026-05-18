@@ -1,0 +1,9 @@
+# Stub. Filled in Phase 1 of server/ai-service/ROADMAP.md.
+
+services:
+  sc-ai-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    # TODO Phase 1: env_file, ports, depends_on (sc-auth-service, sc-product-service),
+    # healthcheck against /healthz, restart policy.

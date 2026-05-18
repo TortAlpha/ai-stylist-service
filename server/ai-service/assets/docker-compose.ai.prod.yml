@@ -1,0 +1,5 @@
+# Stub. Filled in Phase 6 of server/ai-service/ROADMAP.md.
+
+services:
+  sc-ai-service:
+    # TODO Phase 6: image from registry, restart unless-stopped, env_file, healthcheck.

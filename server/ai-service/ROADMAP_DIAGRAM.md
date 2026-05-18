@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart LR
-    P0A["Phase 0a<br/>pgvector + text embeddings<br/>(выбор multimodal провайдера,<br/>product_text_embeddings,<br/>text-embedder, semantic-search v0)"]
+    P0A["Phase 0a<br/>pgvector + text embeddings<br/>(Cohere клиент,<br/>product_text_embeddings,<br/>text-embedder, semantic-search v0)"]
     P0B["Phase 0b<br/>image embeddings<br/>(product_image_embeddings,<br/>embed_product_images job,<br/>hybrid SQL)"]
     P1["Phase 1<br/>каркас ai-service<br/>(/healthz, nginx, compose)"]
     P2["Phase 2<br/>chat без tools<br/>(SSE, история, TTL)"]
