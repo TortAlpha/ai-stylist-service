@@ -1,101 +1,176 @@
 # AI Service Lab
 
-Учебный проект для разработки `ai-service` в экосистеме AvaVintage. Цель
-сервиса - создать AI-стилиста для покупателей: он принимает запросы на
-естественном языке, помогает подбирать товары, уточняет предпочтения и
-возвращает рекомендации с карточками товаров.
+A learning project for building `ai-service` inside the AvaVintage ecosystem.
+The goal is an **AI stylist** for shoppers: it takes natural-language
+requests, helps pick out products, clarifies preferences, and returns
+recommendations backed by real product cards.
 
-Подробный дизайн описан в `server/ai-service/DESIGN.md`.
+Full design lives in [`server/ai-service/DESIGN.md`](server/ai-service/DESIGN.md).
 
-## Что делает сервис
+## About this project
 
-`ai-service` работает как отдельный FastAPI-сервис, который:
+This fork is a portfolio piece built to demonstrate **AI-agent-driven
+engineering**: the `ai-service` slice — design, phased implementation plan,
+code, and tests — was built end-to-end in direct collaboration with an AI
+coding agent (Claude Code) rather than hand-written line by line. The
+paper trail is in the repo, not just the claim:
 
-- принимает чат-запросы от frontend через SSE;
-- использует OpenAI API для генерации ответа и tool use;
-- использует multimodal embedding-модель (общую с `product-service`) для query-эмбеддингов — текст и картинки в одном векторном пространстве;
-- ходит в `product-service` за товарами, фильтрами, фасетами и hybrid semantic search (text + image);
-- проверяет пользователя через JWT, выпущенный `auth-service`;
-- хранит историю диалога in-memory для MVP;
-- возвращает текстовый ответ и ids рекомендованных товаров.
+- [`server/ai-service/DESIGN.md`](server/ai-service/DESIGN.md) — architecture
+  and design decisions, written before implementation.
+- [`server/ai-service/plan.md`](server/ai-service/plan.md) — a phased,
+  mergeable rollout plan derived from the design.
+- Incremental commits that follow that plan phase by phase, with the agent
+  doing the driving and a human reviewing, steering, and merging.
 
-Основной endpoint MVP:
+Beyond the workflow, the system itself is squarely in agentic-engineering
+territory:
+
+- an **LLM tool-use loop** (`llm/loop.py`, `llm/tools.py`) where the model
+  calls typed, Pydantic-validated tools (`search_products`,
+  `semantic_search`, `get_product_details`, `list_facets`) against a live
+  backend, wrapped in budget/rate-limit/circuit-breaker guards;
+- a **RAG-style semantic search pipeline** — a shared multimodal embedding
+  space (text + product images) feeding hybrid `pgvector` search;
+- a **polyglot, containerized microservice system** — Rust (`product-service`,
+  `auth-service`, `user-service`), Python/FastAPI (`ai-service`), Angular
+  (`sc-admin`), fronted by nginx, all orchestrated via docker-compose.
+
+## What the service does
+
+`ai-service` is a standalone FastAPI service that:
+
+- accepts chat requests from the frontend over SSE;
+- uses the OpenAI API for response generation and tool use;
+- uses a multimodal embedding model (shared with `product-service`) for
+  query embeddings — text and images live in the same vector space;
+- calls `product-service` for products, filters, facets, and hybrid
+  semantic search (text + image);
+- authenticates the user via a JWT issued by `auth-service`;
+- keeps conversation history in memory for the MVP;
+- returns a text reply plus the ids of recommended products.
+
+MVP's main endpoint:
 
 ```text
 POST /api/stylist/chat
 ```
 
-Ответ стримится событиями:
+The response streams as events:
 
 ```text
 token -> token -> products -> done
 ```
 
-## Архитектура
+## Architecture
 
-```text
-frontend
-  -> nginx
-  -> ai-service
-      -> OpenAI API           (chat completion)
-      -> Multimodal Embed API (query embedding — общий провайдер с product-service)
-      -> product-service       (search, filters, hybrid semantic search)
-      -> auth-service
+```mermaid
+flowchart LR
+    FE[Frontend<br/>sc-admin]
+    NG[nginx<br/>JWT auth_request]
+    AI[ai-service<br/>FastAPI · chat + tool loop]
+    OAI[OpenAI API<br/>chat completion]
+    ME[Multimodal Embed API<br/>Cohere embed-multilingual-v3.0]
+    PS[product-service<br/>Rust · source of truth]
+    AUTH[auth-service]
+    DB[(product DB<br/>pgvector: text + image embeddings)]
+
+    FE -->|POST /api/stylist/chat SSE| NG
+    NG --> AI
+    NG -.auth_request.-> AUTH
+    AI -->|chat + tool use| OAI
+    AI -->|embed user query| ME
+    AI -->|search / semantic-search / details| PS
+    PS --> DB
+    PS -.text & image embedders.-> ME
 ```
 
-`ai-service` не хранит копию каталога и не ходит напрямую в product DB.
-Источником правды по товарам остаётся `product-service`.
+`ai-service` does not keep a copy of the catalog and never talks to the
+product DB directly — `product-service` remains the single source of truth
+for products.
 
-## Основной стек
+### Request flow (point search)
+
+```mermaid
+sequenceDiagram
+    actor U as Shopper
+    participant FE as Frontend
+    participant N as nginx
+    participant AI as ai-service
+    participant OAI as OpenAI
+    participant PS as product-service
+
+    U->>FE: "Leather bag under 10k"
+    FE->>N: POST /api/stylist/chat (SSE, JWT)
+    N->>AI: forward (X-User-Id, X-User-Role)
+    AI->>OAI: chat.completions.create(stream, tools=[...])
+    OAI-->>AI: tool_call: search_products(category="bags", price_max=10000)
+    AI->>PS: GET /products?...
+    PS-->>AI: [products...]
+    AI->>OAI: tool_result(products)
+    OAI-->>AI: token stream + product ids
+    AI-->>FE: SSE: token... token... products... done
+    FE->>PS: GET /products/{id} (product cards, in parallel)
+```
+
+For a fuzzy request ("something warm, 90s vibe") the LLM instead calls
+`semantic_search`: `ai-service` embeds the query with the same multimodal
+model used to index products, `product-service` scores it against pgvector
+text- and image-embeddings (`w_text * text_cos + w_image * MAX(image_cos)`),
+and returns ranked products with a `score_breakdown`. See
+[`DESIGN.md`](server/ai-service/DESIGN.md) for the full sequence diagrams
+(semantic search, drill-in, and the embedding indexing pipeline).
+
+## Tech stack
 
 - FastAPI + Uvicorn
 - OpenAI Python SDK
 - Pydantic
-- SSE через `sse-starlette`
-- HTTP-клиент к `product-service`
-- JWT авторизация
-- in-memory conversations для MVP
+- SSE via `sse-starlette`
+- HTTP client to `product-service`
+- JWT auth (terminated at nginx)
+- In-memory conversations for the MVP
 
-## Product Embeddings
+## Product embeddings
 
-Semantic search проектируется так, чтобы embeddings товаров принадлежали
-`product-service`. В product DB добавляются две таблицы с `pgvector`:
+Semantic search is designed so that product embeddings belong to
+`product-service`. Two `pgvector` tables live in the product DB:
 
-- `product_text_embeddings` — один вектор на товар, считается по
+- `product_text_embeddings` — one vector per product, computed from
   `generate_product_text(id)`;
-- `product_image_embeddings` — по строке на каждое фото товара (по
-  `medium.webp` варианта), агрегация при поиске — `MAX` cosine-similarity.
+- `product_image_embeddings` — one row per product photo (the
+  `medium.webp` variant), aggregated at search time with `MAX`
+  cosine-similarity.
 
-Обе таблицы и query-эмбеддинг в `ai-service` используют **одну и ту же**
-multimodal embedding-модель (вариант B — единое векторное пространство для
-текста и картинок). Это позволяет text-запросу из чата напрямую матчиться на
-визуальные признаки товара. Конкретный провайдер (Cohere Embed-3 / Voyage
-Multimodal / Vertex `multimodalembedding@001` / open_clip+SigLIP)
-фиксируется в Phase 0a после спайка по качеству и стоимости.
+Both tables and the query embedding in `ai-service` use the **same**
+multimodal embedding model (single joint vector space for text and
+images). This lets a text query from chat match directly against a
+product's visual features. The chosen provider is **Cohere
+`embed-multilingual-v3.0`** (dim 1024) — multilingual out of the box
+(catalog and users are Russian-first) with no cloud vendor lock-in.
 
-`ai-service` эмбеддит только пользовательский запрос и отправляет query
-vector во внутренний endpoint `product-service`, который считает hybrid
-score `w_text * text_cos + w_image * MAX(image_cos)` и возвращает товары
-вместе со `score_breakdown`.
+`ai-service` only embeds the user's query and sends the query vector to
+an internal `product-service` endpoint, which computes the hybrid score
+and returns products together with a `score_breakdown`.
 
-## Tool Use
+## Tool use
 
-LLM сможет вызывать ограниченный набор инструментов:
+The LLM can call a constrained set of tools:
 
-- `search_products` - точный поиск по фильтрам;
-- `semantic_search` - поиск по смыслу через embeddings;
-- `get_product_details` - получение полной карточки товара;
-- `list_facets` - получение реальных брендов, категорий и тегов.
+- `search_products` — precise filter-based search;
+- `semantic_search` — meaning-based search via embeddings;
+- `get_product_details` — full product card;
+- `list_facets` — real brands, categories, and tags.
 
-Все аргументы tools должны валидироваться через Pydantic.
+All tool arguments are validated with Pydantic.
 
-## MVP Ограничения
+## MVP limitations
 
-- история диалогов хранится только в памяти процесса;
-- после рестарта сервиса история пропадает;
-- горизонтальное масштабирование потребует Redis или другое внешнее хранилище;
-- rate limits и cost guards на старте можно реализовать in-memory;
-- text- и image-embedder в `product-service`, миграции pgvector и
-  hybrid semantic endpoint ещё нужно добавить (Phase 0a + 0b);
-- «найти по фото» (image upload в чат) — post-MVP, инфраструктура для этого
-  закладывается уже в MVP, но tool/UI добавляется позже.
+- conversation history is kept only in process memory;
+- history is lost on service restart;
+- horizontal scaling will require Redis or another external store;
+- rate limits and cost guards start out in-memory;
+- the text- and image-embedder in `product-service`, pgvector migrations,
+  and the hybrid semantic-search endpoint are being built incrementally
+  (see `server/ai-service/plan.md`);
+- "search by photo" (image upload in chat) is post-MVP — the underlying
+  infrastructure is laid down in the MVP, but the tool/UI ships later.
