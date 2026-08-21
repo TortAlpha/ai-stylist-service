@@ -36,6 +36,27 @@ services:
       minio-init:
         condition: service_completed_successfully
 
+  sc-product-text-embedder:
+    extends:
+      file: ./server/product-service/assets/docker-compose.product.yml
+      service: product-text-embedder
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+      sc-product-service:
+        condition: service_started
+
+  # One-shot backfill. Run with:
+  #   docker compose --profile backfill run --rm sc-product-reindex-images
+  sc-product-reindex-images:
+    profiles: ["backfill"]
+    extends:
+      file: ./server/product-service/assets/docker-compose.product.yml
+      service: product-reindex-images
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+
   sc-auth-service:
     extends:
       file: ./server/auth-service/assets/docker-compose.auth.yml
@@ -52,6 +73,14 @@ services:
       postgres-user:
         condition: service_healthy
 
+  sc-ai-service:
+    extends:
+      file: ./server/ai-service/assets/docker-compose.ai.yml
+      service: ai-service
+    depends_on:
+      - sc-auth-service
+      - sc-product-service
+
 #  mvp in process...
 #  sc-client:
 #    extends:
@@ -66,6 +95,7 @@ services:
       - sc-product-service
       - sc-auth-service
       - sc-user-service
+      - sc-ai-service
 
   sc-client-admin:
     extends:

@@ -47,13 +47,15 @@ CREATE TRIGGER trg_addresses_updated_at
     BEFORE UPDATE ON addresses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- Seed admin user (password: admin1234, argon2 hash)
+-- Seed admin user for local dev only. Password is random, argon2id hash below;
+-- ask whoever set up this environment for the plaintext, or just reset it via
+-- the auth-service API. Do not rely on this account outside local dev.
 INSERT INTO users (name, surname, email, password, role)
 VALUES (
     'Admin',
     'SC',
     'admin@sc.com',
-    '$argon2id$v=19$m=19456,t=2,p=1$kP9y1UNToXVBVKX4ppx5Rg$/z/WkBVObHsR77svfJ0LmZbGv7rqXRdWRVcIg1KqUwQ',
+    '$argon2id$v=19$m=19456,t=2,p=1$rbwpFnzW16GsVPv9mt6Dyw$7EIUZpCCZ+sFXBYu/wwaqvBIFw/GTwqXpHeynbB5gFM',
     'admin'
 ) ON CONFLICT (email) DO NOTHING;
 
