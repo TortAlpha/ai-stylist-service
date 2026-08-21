@@ -3,7 +3,29 @@ name = "ai-service"
 version = "0.1.0"
 description = "Stylist service for sc marketplace"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115,<0.116",
+    "uvicorn[standard]>=0.30,<0.35",
+    "httpx>=0.27,<0.29",
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.4,<3",
+    "sse-starlette>=2.1,<3",
+    "structlog>=24.1,<26",
+    "prometheus-client>=0.20,<0.22",
+    "openai>=1.30,<2",
+    "tiktoken>=0.7,<0.9",
+    "langsmith>=0.1.100,<0.3",
+    "cohere>=5.13,<6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "pytest-asyncio>=0.23,<0.25",
+    "pytest-httpserver>=1.0,<2",
+    "ruff>=0.6,<0.8",
+    "mypy>=1.10,<2",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -11,3 +33,26 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ai_service"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Russian-language strings (prompts, tool descriptions) trigger
+# ambiguous-unicode false positives on `у`, `е`, `Н`, `б`, etc.
+"src/ai_service/llm/prompts.py" = ["RUF001"]
+"src/ai_service/llm/tools.py" = ["RUF001"]
+"tests/**" = ["RUF001"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

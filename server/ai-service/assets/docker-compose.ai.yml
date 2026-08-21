@@ -1,9 +1,41 @@
-# Stub. Filled in Phase 1 of server/ai-service/ROADMAP.md.
-
 services:
-  sc-ai-service:
+  ai-service:
     build:
       context: ..
       dockerfile: Dockerfile
-    # TODO Phase 1: env_file, ports, depends_on (sc-auth-service, sc-product-service),
-    # healthcheck against /healthz, restart policy.
+    container_name: ai-service
+    environment:
+      SERVICE_PORT: "8084"
+      LOG_LEVEL: ${AI_LOG_LEVEL:-info}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      OPENAI_REQUEST_TIMEOUT_SECONDS: ${OPENAI_REQUEST_TIMEOUT_SECONDS:-30}
+      MULTIMODAL_EMBED_PROVIDER: ${MULTIMODAL_EMBED_PROVIDER:-cohere}
+      MULTIMODAL_EMBED_MODEL: ${MULTIMODAL_EMBED_MODEL:-embed-multilingual-v3.0}
+      MULTIMODAL_EMBED_DIM: ${MULTIMODAL_EMBED_DIM:-1024}
+      MULTIMODAL_EMBED_API_KEY: ${MULTIMODAL_EMBED_API_KEY:-}
+      MULTIMODAL_EMBED_BASE_URL: ${MULTIMODAL_EMBED_BASE_URL:-}
+      MULTIMODAL_EMBED_TIMEOUT_SECONDS: ${MULTIMODAL_EMBED_TIMEOUT_SECONDS:-15}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8081}
+      PRODUCT_SERVICE_TIMEOUT_SECONDS: ${PRODUCT_SERVICE_TIMEOUT_SECONDS:-5}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      MAX_HISTORY_MESSAGES: ${MAX_HISTORY_MESSAGES:-30}
+      HISTORY_TOKEN_BUDGET: ${HISTORY_TOKEN_BUDGET:-6000}
+      MAX_TOOL_ITERATIONS: ${MAX_TOOL_ITERATIONS:-4}
+      MAX_TOKENS_PER_REPLY: ${MAX_TOKENS_PER_REPLY:-800}
+      CONVERSATION_TTL_MINUTES: ${CONVERSATION_TTL_MINUTES:-30}
+      RATE_LIMIT_MESSAGES_PER_MIN: ${RATE_LIMIT_MESSAGES_PER_MIN:-12}
+      RATE_LIMIT_TOKENS_PER_DAY: ${RATE_LIMIT_TOKENS_PER_DAY:-50000}
+      QUERY_EMBED_DAILY_CAP: ${QUERY_EMBED_DAILY_CAP:-10000}
+      JWT_SECRET: ${JWT_SECRET:-}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-true}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-sc-ai-service-dev}
+      LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped

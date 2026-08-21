@@ -1,0 +1,77 @@
+---
+title: AI-service — pipeline для semantic_search (размытый поиск)
+---
+
+sequenceDiagram
+    %% Source of truth:
+    %%   server/ai-service/DESIGN.md → Tool use / API / Поток 2 / Хранилища
+    %%   server/ai-service/ROADMAP.md → Phase 4 (зависит от Phase 0a + 0b)
+    %%
+    %% Полный цикл: пользователь шлёт размытое сообщение по смыслу,
+    %% LLM выбирает semantic_search, ai-service берёт текст запроса,
+    %% эмбеддит через Cohere embed-multilingual-v3.0 (dim 1024) и шлёт
+    %% полученный вектор в product-service, который считает hybrid score
+    %% (text_cos + MAX(image_cos)) по pgvector и возвращает топ-k
+    %% со score_breakdown — чтобы LLM мог аргументировать "по виду" /
+    %% "по описанию".
+
+    autonumber
+    actor U as Пользователь
+    participant FE as Frontend
+    participant NG as nginx
+    participant AS as auth-service
+    participant AI as ai-service<br/>:8084
+    participant OAI as OpenAI<br/>chat.completions
+    participant CO as Cohere API<br/>embed-multilingual-v3.0
+    participant PS as product-service<br/>:8081
+    participant DB as product DB<br/>+ pgvector HNSW
+
+    U->>FE: "что-то в духе 90-х, тёплое"
+    FE->>NG: POST /api/stylist/chat<br/>SSE, JWT
+
+    NG->>AS: auth_request
+    AS-->>NG: 200 + X-User-Id
+    NG->>AI: forward
+
+    Note over AI: auth → ratelimit →<br/>load conversation →<br/>budget trim → prompt assemble
+
+    AI->>OAI: chat.completions.create<br/>stream=true, tools=[...]
+
+    OAI-->>AI: stream → tool_call<br/>semantic_search(<br/>  query="90s warm vintage",<br/>  top_k=10,<br/>  filters={price_max:10000})
+
+    Note over AI: Pydantic validate args<br/>check QUERY_EMBED_DAILY_CAP=10000
+
+    AI->>CO: POST /v1/embed<br/>model=embed-multilingual-v3.0<br/>input_type=search_query<br/>texts=["90s warm vintage"]
+
+    CO-->>AI: float[1024] vector<br/>+ billed_units
+
+    AI->>PS: POST /internal/products/semantic-search<br/>X-Internal-Token,<br/>{ vector[1024], top_k:10, filters }
+
+    Note over PS: валидация len(vector) ==<br/>MULTIMODAL_EMBED_DIM=1024<br/>иначе 400 invalid_vector_dim
+
+    PS->>DB: hybrid SQL:<br/>WITH text_scores AS (1-(emb<=>$q)),<br/>     image_scores AS (MAX(1-(emb<=>$q))<br/>                       GROUP BY product_id)<br/>SELECT w_text*t + w_image*i AS score<br/>WHERE status='ready' AND filters<br/>ORDER BY score DESC LIMIT 10
+
+    DB-->>PS: top-10 rows<br/>+ best_image_idx per product
+
+    PS-->>AI: 200 { items: [{<br/>  id, score: 0.87,<br/>  score_breakdown:<br/>    {text:0.81, image:0.93,<br/>     best_image_idx:2},<br/>  name, brand, price,<br/>  highlight_fields }, ...] }
+
+    AI->>OAI: chat.completions.create (2-й вызов)<br/>messages + tool_result<br/>(включая score_breakdown)
+
+    OAI-->>AI: stream of content tokens<br/>(LLM аргументирует:<br/>"подошло по виду" / "по описанию")
+
+    AI-->>FE: event: token data: {"text": "..."}
+
+    Note over AI,FE: ... много токенов ...<br/>ping каждые 15с
+
+    AI-->>FE: event: products<br/>data: {"ids": ["uuid-1", ...]}
+    AI-->>FE: event: done
+
+    Note over AI: conversation.update<br/>last_product_ids + TTL reset<br/>ratelimit списать tokens<br/>QUERY_EMBED_DAILY_CAP -= 1
+
+    par Frontend подгружает карточки
+        FE->>NG: GET /products/{id} × N
+        NG->>PS: forward
+        PS-->>FE: full cards
+    end
+
+    FE->>U: render

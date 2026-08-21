@@ -1,0 +1,86 @@
+---
+title: AI-service — error / fallback paths в tool-use loop
+---
+
+flowchart TD
+    %% Source of truth:
+    %%   server/ai-service/DESIGN.md → Обработка ошибок и сбои зависимостей
+    %%   server/ai-service/DESIGN.md → API → event: error codes
+    %%
+    %% Каждая точка отказа в pipeline даёт tool_result с error, который
+    %% возвращается в LLM — модель сама решает: переформулировать,
+    %% переключиться на другой tool, или ответить пользователю без подбора.
+    %% Если loop крутится > MAX_TOOL_ITERATIONS=4 — принудительно
+    %% завершаем с tool_choice="none".
+
+    Start([LLM выбрал tool])
+
+    Start --> Type{Какой tool?}
+    Type -->|search_products| SP_Args[Pydantic validate]
+    Type -->|semantic_search| SS_Args[Pydantic validate]
+    Type -->|get_product_details| GPD_Args[Pydantic validate]
+    Type -->|list_facets| LF_Args[Pydantic validate]
+
+    SP_Args --> SP_Valid{args валидны?}
+    SP_Valid -->|нет<br/>тег не существует| ToolErr["tool_result<br/>error: validation,<br/>valid_options: [...]"]
+    SP_Valid -->|да| SP_Call[ GET /products PS]
+
+    SS_Args --> SS_Cap{QUERY_EMBED_DAILY_CAP<br/>exceeded?}
+    SS_Cap -->|да| FallbackSP[tool_result<br/>error: embed_quota_exceeded]
+    SS_Cap -->|нет| SS_Embed[Cohere POST /v1/embed]
+
+    SS_Embed --> SS_EmbedOK{HTTP OK?}
+    SS_EmbedOK -->|429 / 5xx / timeout| SS_Retry[retry x2 backoff jitter]
+    SS_Retry --> SS_RetryOK{восстановилось?}
+    SS_RetryOK -->|нет| FallbackSP
+    SS_RetryOK -->|да| SS_PS[POST /internal/semantic-search]
+    SS_EmbedOK -->|200| SS_PS
+
+    SS_PS --> SS_Dim{len vector ==<br/>MULTIMODAL_EMBED_DIM?}
+    SS_Dim -->|нет| Err400[400 invalid_vector_dim<br/>= рассинхрон провайдеров,<br/>fatal config error]
+    SS_Dim -->|да| SS_SQL[hybrid SQL execute]
+
+    SS_SQL --> SS_Rows{rows возвращено?}
+    SS_Rows -->|0| Empty[tool_result items: empty]
+    SS_Rows -->|N| OAI[tool_result в OpenAI<br/>+ score_breakdown]
+
+    SP_Call --> SP_OK{HTTP OK?}
+    SP_OK -->|5xx / timeout| SP_Retry[retry x2]
+    SP_Retry --> SP_RetryOK{OK?}
+    SP_RetryOK -->|нет| TR_PS[tool_result<br/>error, retriable: true]
+    SP_RetryOK -->|да| OAI
+    SP_OK -->|200| OAI
+
+    GPD_Args --> OAI
+    LF_Args --> OAI
+
+    ToolErr --> OAI
+    FallbackSP --> OAI
+    TR_PS --> OAI
+    Empty --> OAI
+
+    OAI --> Decide{LLM решает}
+    Decide -->|новый tool_call| Iter{"iterations<br/>&lt; MAX=4?"}
+    Decide -->|финальный content| Stream[stream tokens → SSE]
+
+    Iter -->|да| Start
+    Iter -->|нет, hit cap| Force[tool_choice=none<br/>принудить ответ без tools]
+    Force --> Stream
+
+    Stream --> StreamOK{stream OK<br/>до конца?}
+    StreamOK -->|да| DoneOK[event: products<br/>event: done]
+    StreamOK -->|OpenAI разрыв<br/>/ timeout| ErrUpstream[event: error<br/>code=upstream_unavailable]
+    ErrUpstream --> DoneAfterErr[event: done<br/>всегда последний]
+
+    Err400 --> ErrInternal[event: error<br/>code=internal]
+    ErrInternal --> DoneAfterErr
+
+    classDef ok fill:#dcfce7,stroke:#16a34a,color:#000
+    classDef err fill:#fee2e2,stroke:#dc2626,color:#000
+    classDef fallback fill:#fef9c3,stroke:#ca8a04,color:#000
+    classDef decision fill:#e8f4ff,stroke:#3b82f6,color:#000
+
+    class OAI,Stream,DoneOK ok
+    class Err400,ErrUpstream,ErrInternal,DoneAfterErr err
+    class ToolErr,FallbackSP,TR_PS,Empty,Force fallback
+    class Type,SP_Valid,SS_Cap,SS_EmbedOK,SS_RetryOK,SS_Dim,SS_Rows,SP_OK,SP_RetryOK,Decide,Iter,StreamOK decision

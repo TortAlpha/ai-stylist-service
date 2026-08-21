@@ -1,0 +1,68 @@
+---
+title: AI-service — pipeline для search_products (точечный поиск)
+---
+
+sequenceDiagram
+    %% Source of truth:
+    %%   server/ai-service/DESIGN.md → Tool use / API / Поток 1
+    %%   server/ai-service/ROADMAP.md → Phase 3
+    %%
+    %% Полный цикл: пользователь шлёт сообщение с явными критериями
+    %% (бренд, категория, цена), LLM выбирает search_products, который
+    %% делает обычный SQL-фильтр через product-service.
+    %%
+    %% Embedding-вызовов в этом сценарии НЕТ.
+
+    autonumber
+    actor U as Пользователь
+    participant FE as Frontend
+    participant NG as nginx
+    participant AS as auth-service
+    participant AI as ai-service<br/>:8084
+    participant OAI as OpenAI<br/>chat.completions
+    participant PS as product-service<br/>:8081
+
+    U->>FE: "Кожаная куртка до 8000"
+    FE->>NG: POST /api/stylist/chat<br/>SSE, JWT,<br/>{conversation_id, message}
+
+    NG->>AS: auth_request<br/>/internal/auth/verify
+    AS-->>NG: 200 + X-User-Id + X-User-Role
+
+    NG->>AI: forward с заголовками,<br/>proxy_buffering off
+
+    Note over AI: auth.py → current_user<br/>ratelimit.py → bucket check<br/>(12 msg/min, 50k tok/day)<br/>conversation.py → load history
+
+    Note over AI: llm/budget.py → tiktoken trim<br/>до HISTORY_TOKEN_BUDGET=6000<br/>llm/prompts.py → собрать prompt:<br/>system + history + last_product_ids
+
+    AI->>OAI: chat.completions.create<br/>stream=true,<br/>tools=[search_products,<br/>semantic_search,<br/>get_product_details,<br/>list_facets]
+
+    OAI-->>AI: stream → tool_call<br/>search_products(<br/>  category="outerwear",<br/>  tags=["leather"],<br/>  price_max=8000)
+
+    Note over AI: llm/tools.py<br/>Pydantic validate args
+
+    AI->>PS: GET /products<br/>?category=outerwear<br/>&tags=leather<br/>&price_max=8000
+
+    Note over PS: SQL по btree-индексам<br/>WHERE status='ready'<br/>AND is_deleted=false<br/>+ user filters<br/>LIMIT 20
+
+    PS-->>AI: 200 { items: [...], total: 4 }
+
+    AI->>OAI: chat.completions.create (2-й вызов)<br/>messages + tool_result
+
+    OAI-->>AI: stream of content tokens
+    AI-->>FE: event: token<br/>data: {"text": "Подобрал "}
+    AI-->>FE: event: token<br/>data: {"text": "несколько..."}
+
+    Note over AI,FE: ... много токенов ...<br/>ping каждые 15с
+
+    AI-->>FE: event: products<br/>data: {"ids": ["uuid-1", ...]}
+    AI-->>FE: event: done
+
+    Note over AI: conversation.update<br/>last_product_ids = [...]<br/>TTL reset 30 min<br/>ratelimit списать tokens<br/>structlog: chat_finished
+
+    par Frontend подгружает карточки
+        FE->>NG: GET /products/{id} × N
+        NG->>PS: forward
+        PS-->>FE: full cards
+    end
+
+    FE->>U: render text + cards
