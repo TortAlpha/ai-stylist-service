@@ -15,6 +15,9 @@ pub trait ImageStorage: Send + Sync {
         content_type: &str,
     ) -> Result<(), StorageError>;
 
+    /// Fetch the raw bytes of an object.
+    async fn get_object(&self, bucket: &str, key: &str) -> Result<Vec<u8>, StorageError>;
+
     /// Delete a single object.
     async fn delete_object(&self, bucket: &str, key: &str) -> Result<(), StorageError>;
 

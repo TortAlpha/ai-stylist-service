@@ -56,6 +56,31 @@ impl ImageStorage for S3ImageStorage {
         Ok(())
     }
 
+    async fn get_object(&self, bucket: &str, key: &str) -> Result<Vec<u8>, StorageError> {
+        let resp = self
+            .client
+            .get_object()
+            .bucket(bucket)
+            .key(key)
+            .send()
+            .await
+            .map_err(|e| {
+                let msg = format!("S3 get_object failed: {e}");
+                let s = e.to_string();
+                if s.contains("NoSuchKey") || s.contains("404") {
+                    StorageError::NotFound(msg)
+                } else {
+                    StorageError::Internal(msg)
+                }
+            })?;
+        let bytes = resp
+            .body
+            .collect()
+            .await
+            .map_err(|e| StorageError::Internal(format!("S3 get_object body: {e}")))?;
+        Ok(bytes.into_bytes().to_vec())
+    }
+
     async fn delete_prefix(&self, bucket: &str, prefix: &str) -> Result<(), StorageError> {
         let keys = self.list_keys(bucket, prefix).await?;
         for key in keys {

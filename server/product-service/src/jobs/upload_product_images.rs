@@ -3,6 +3,7 @@
 //! Payload shape: `{ "product_id": "<uuid>" }`
 //! Blobs: raw image bytes paired with content-types in `blob_types`.
 
+use sqlx::PgPool;
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -66,18 +67,38 @@ pub fn parse(job: &Job) -> Result<(Uuid, Vec<UploadFile>), String> {
 pub async fn handle(
     job: &Job,
     photo_service: &ProductPhotoService,
+    pool: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     debug!(job_id = job.id, "jobs:handle upload_product_images start");
     let (product_id, files) = parse(job)?;
-    let uploaded = photo_service
+    let new_indices = photo_service
         .upload_images(product_id, files)
         .await
         .map_err(|e| format!("upload_images failed: {e}"))?;
+    let uploaded = new_indices.len();
     info!(
         job_id = job.id,
         %product_id,
         uploaded,
         "jobs:handle upload_product_images success"
     );
+
+    // Enqueue per-image embedding for exactly the indices we just wrote.
+    // Done in a short transaction so a worker crash between the upload and
+    // the enqueue doesn't leave embeddings behind: the backfill job
+    // (`SERVICE_MODE=reindex-images`) recovers from that case.
+    if uploaded > 0 {
+        let indices_i32: Vec<i32> = new_indices.iter().map(|i| *i as i32).collect();
+        let mut tx = pool
+            .begin()
+            .await
+            .map_err(|e| format!("begin tx for embed enqueue: {e}"))?;
+        super::enqueue_embed_product_images(&mut tx, product_id, &indices_i32)
+            .await
+            .map_err(|e| format!("enqueue embed_product_images: {e}"))?;
+        tx.commit()
+            .await
+            .map_err(|e| format!("commit tx for embed enqueue: {e}"))?;
+    }
     Ok(())
 }

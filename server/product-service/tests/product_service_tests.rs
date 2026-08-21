@@ -457,6 +457,10 @@ impl ImageStorage for StorageStub {
         Ok(())
     }
 
+    async fn get_object(&self, _bucket: &str, _key: &str) -> Result<Vec<u8>, StorageError> {
+        Err(StorageError::NotFound("stub: get_object not implemented".into()))
+    }
+
     async fn delete_prefix(&self, bucket: &str, prefix: &str) -> Result<(), StorageError> {
         self.delete_calls
             .lock()
@@ -948,12 +952,12 @@ async fn upload_images_ok() {
         content_type: "image/png".into(),
     };
 
-    let count = svc
+    let indices = svc
         .upload_images(id, vec![file])
         .await
         .expect("upload should succeed");
 
-    assert_eq!(count, 1);
+    assert_eq!(indices.len(), 1);
 
     let puts = storage.put_calls();
     assert_eq!(puts.len(), 3);

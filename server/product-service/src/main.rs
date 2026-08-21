@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use actix_web::{App, HttpServer, middleware::Logger, web};
-use product_service::config::Config;
+use product_service::config::{Config, ServiceMode};
+use product_service::embeddings::{CohereEmbedder, MultimodalEmbedder};
 use product_service::handler;
 use product_service::jobs;
+use product_service::jobs::{EmbedWorkerDeps, reindex_images, text_embedder::TextEmbedderWorker};
 use product_service::openapi::ApiDoc;
 use product_service::repo::impls::{
     brand_repo::PgBrandRepo, category_repo::PgCategoryRepo, product_photo_repo::PgProductPhotoRepo,
@@ -16,7 +18,7 @@ use product_service::service::{
     tag_service::TagService,
 };
 use product_service::storage::s3::S3ImageStorage;
-use tracing::info;
+use tracing::{error, info};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -42,6 +44,45 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to apply database migrations");
     info!("Database migrations applied");
 
+    match config.mode {
+        ServiceMode::TextEmbedder => run_text_embedder(config, pool).await,
+        ServiceMode::ReindexImages => run_reindex_images(pool).await,
+        ServiceMode::Server => run_http_server(config, pool).await,
+    }
+}
+
+async fn run_reindex_images(pool: sqlx::PgPool) -> std::io::Result<()> {
+    info!("Starting product-service in reindex-images mode");
+    reindex_images::run(pool)
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    info!("reindex_images: done — exiting");
+    Ok(())
+}
+
+async fn run_text_embedder(config: Config, pool: sqlx::PgPool) -> std::io::Result<()> {
+    let embedder = match CohereEmbedder::new(
+        config.embed.api_key.clone(),
+        config.embed.base_url.clone(),
+        config.embed.model.clone(),
+        config.embed.dim,
+        config.embed.timeout,
+        config.embed.image_throttle,
+    ) {
+        Ok(e) => Arc::new(e),
+        Err(e) => {
+            error!(error = %e, "text-embedder: failed to init Cohere client");
+            // Surface as a non-zero exit so the orchestrator can restart.
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+        }
+    };
+    let worker = TextEmbedderWorker::new(pool, embedder, config.text_embedder.clone());
+    info!("Starting product-service in text-embedder mode");
+    worker.run().await;
+    Ok(())
+}
+
+async fn run_http_server(config: Config, pool: sqlx::PgPool) -> std::io::Result<()> {
     // ── S3 ──────────────────────────────────────────────────
     let aws_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
     let s3_internal_config = aws_sdk_s3::config::Builder::from(&aws_config)
@@ -82,7 +123,37 @@ async fn main() -> std::io::Result<()> {
     ));
 
     // ── Background workers ──────────────────────────────────
-    jobs::spawn_worker(pool.clone(), photo_service.clone());
+    // If MULTIMODAL_EMBED_API_KEY is set, attach embedder deps so the
+    // shared queue can dispatch `embed_product_images` jobs. Otherwise
+    // start the worker without embedding support — those jobs will fail
+    // until an operator configures the key.
+    let embed_deps: Option<EmbedWorkerDeps> = if config.embed.api_key.is_empty() {
+        info!("MULTIMODAL_EMBED_API_KEY not set — embed_product_images jobs will fail until configured");
+        None
+    } else {
+        match CohereEmbedder::new(
+            config.embed.api_key.clone(),
+            config.embed.base_url.clone(),
+            config.embed.model.clone(),
+            config.embed.dim,
+            config.embed.timeout,
+            config.embed.image_throttle,
+        ) {
+            Ok(e) => {
+                let embedder: Arc<dyn MultimodalEmbedder> = Arc::new(e);
+                Some(EmbedWorkerDeps {
+                    storage: image_storage.clone(),
+                    images_bucket: config.s3_images_bucket.clone(),
+                    embedder,
+                })
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "failed to init image embedder; embed jobs disabled");
+                None
+            }
+        }
+    };
+    jobs::spawn_worker(pool.clone(), photo_service.clone(), embed_deps);
 
     let photo_service_data = web::Data::from(photo_service);
     let brand_service = web::Data::new(BrandService::new(Arc::new(PgBrandRepo::new(pool.clone()))));
@@ -91,6 +162,9 @@ async fn main() -> std::io::Result<()> {
     let purchase_location_service = web::Data::new(PurchaseLocationService::new(Arc::new(
         PgPurchaseLocationRepo::new(pool.clone()),
     )));
+
+    let config_data = web::Data::new(config.clone());
+    let pool_data = web::Data::new(pool);
 
     // ── HTTP Server ─────────────────────────────────────────
     info!("Starting PRODUCT SERVICE on port {}", config.port);
@@ -106,6 +180,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(category_service.clone())
             .app_data(tag_service.clone())
             .app_data(purchase_location_service.clone())
+            .app_data(config_data.clone())
+            .app_data(pool_data.clone())
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )
@@ -115,7 +191,8 @@ async fn main() -> std::io::Result<()> {
                     .configure(handler::brand_handler::configure)
                     .configure(handler::category_handler::configure)
                     .configure(handler::tag_handler::configure)
-                    .configure(handler::purchase_location_handler::configure),
+                    .configure(handler::purchase_location_handler::configure)
+                    .configure(handler::internal_handler::configure),
             )
     })
     .bind(("0.0.0.0", config.port))?

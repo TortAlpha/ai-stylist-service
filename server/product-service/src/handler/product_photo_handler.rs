@@ -1,5 +1,6 @@
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, web};
+use sqlx::PgPool;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -104,11 +105,28 @@ pub async fn delete_image(
     _admin: AdminUser,
     path: web::Path<(Uuid, usize)>,
     service: web::Data<ProductPhotoService>,
+    pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, ServiceError> {
     let (product_id, image_id) = path.into_inner();
     debug!(%product_id, image_id, "delete image request");
     service.delete_image(product_id, image_id).await?;
-    info!(%product_id, image_id, "image deleted");
+
+    // Drop the matching embedding row so the semantic index stays in sync
+    // with S3. Missing row is fine — image may have never been embedded.
+    let deleted = sqlx::query(
+        "DELETE FROM product_image_embeddings WHERE product_id = $1 AND image_idx = $2",
+    )
+    .bind(product_id)
+    .bind(image_id as i32)
+    .execute(pool.get_ref())
+    .await
+    .map_err(|e| {
+        warn!(error = %e, "delete_image: failed to clean embedding row");
+        ServiceError::Internal(format!("delete product_image_embeddings: {e}"))
+    })?
+    .rows_affected();
+
+    info!(%product_id, image_id, embeddings_deleted = deleted, "image deleted");
     Ok(HttpResponse::Ok().json(ApiResponse::ok(())))
 }
 

@@ -10,6 +10,9 @@
 //! surrounding business write commits.
 
 pub mod delete_product_images;
+pub mod embed_product_images;
+pub mod reindex_images;
+pub mod text_embedder;
 pub mod upload_product_images;
 pub mod upload_product_preview;
 
@@ -22,11 +25,14 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::domain::product_photo::UploadFile;
+use crate::embeddings::MultimodalEmbedder;
 use crate::service::product_photo_service::ProductPhotoService;
+use crate::storage::traits::ImageStorage;
 
 pub const KIND_UPLOAD_PRODUCT_IMAGES: &str = "upload_product_images";
 pub const KIND_UPLOAD_PRODUCT_PREVIEW: &str = "upload_product_preview";
 pub const KIND_DELETE_PRODUCT_IMAGES: &str = "delete_product_images";
+pub const KIND_EMBED_PRODUCT_IMAGES: &str = "embed_product_images";
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -144,6 +150,37 @@ pub async fn enqueue_upload_product_preview(
     Ok(id)
 }
 
+/// Enqueue an `embed_product_images` job inside an existing transaction.
+///
+/// Called right after `upload_product_images` succeeds (and optionally from
+/// the `reindex-images` backfill). `image_indices` lists the S3 indices
+/// whose `medium.webp` should be (re)embedded. Indices that don't yet
+/// exist in S3 are silently skipped by the handler.
+pub async fn enqueue_embed_product_images(
+    tx: &mut Transaction<'_, Postgres>,
+    product_id: Uuid,
+    image_indices: &[i32],
+) -> Result<i64, sqlx::Error> {
+    let payload = serde_json::json!({
+        "product_id": product_id,
+        "image_indices": image_indices,
+    });
+    debug!(%product_id, count = image_indices.len(), "jobs:enqueue embed_product_images");
+    let id: i64 = sqlx::query_scalar(
+        r#"
+        INSERT INTO jobs (kind, payload)
+        VALUES ($1, $2)
+        RETURNING id::BIGINT
+        "#,
+    )
+    .bind(KIND_EMBED_PRODUCT_IMAGES)
+    .bind(payload)
+    .fetch_one(tx.as_mut())
+    .await?;
+    info!(%product_id, job_id = id, "jobs:enqueue embed_product_images created");
+    Ok(id)
+}
+
 /// Enqueue product image cleanup inside an existing transaction.
 /// Used by product soft-delete so DB state and cleanup scheduling commit atomically.
 pub async fn enqueue_delete_product_images(
@@ -173,12 +210,29 @@ pub async fn enqueue_delete_product_images(
     Ok(id)
 }
 
+/// Dependencies required to process embedding jobs. Optional on the
+/// worker so dev environments without `MULTIMODAL_EMBED_API_KEY` can
+/// still run the rest of the queue.
+pub struct EmbedWorkerDeps {
+    pub storage: Arc<dyn ImageStorage>,
+    pub images_bucket: String,
+    pub embedder: Arc<dyn MultimodalEmbedder>,
+}
+
 /// Spawn the background worker loop. Runs until the process exits.
-pub fn spawn_worker(pool: PgPool, photo_service: Arc<ProductPhotoService>) {
+pub fn spawn_worker(
+    pool: PgPool,
+    photo_service: Arc<ProductPhotoService>,
+    embed_deps: Option<EmbedWorkerDeps>,
+) {
+    let embed_deps = embed_deps.map(Arc::new);
     tokio::spawn(async move {
-        info!("jobs worker started");
+        info!(
+            embed_enabled = embed_deps.is_some(),
+            "jobs worker started"
+        );
         loop {
-            match process_one(&pool, &photo_service).await {
+            match process_one(&pool, &photo_service, embed_deps.as_deref()).await {
                 Ok(true) => {} // got a job — immediately try for more
                 Ok(false) => tokio::time::sleep(POLL_INTERVAL).await,
                 Err(e) => {
@@ -195,6 +249,7 @@ pub fn spawn_worker(pool: PgPool, photo_service: Arc<ProductPhotoService>) {
 async fn process_one(
     pool: &PgPool,
     photo_service: &ProductPhotoService,
+    embed_deps: Option<&EmbedWorkerDeps>,
 ) -> Result<bool, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -223,7 +278,7 @@ async fn process_one(
         max_attempts = job.max_attempts,
         "jobs worker picked job"
     );
-    let result = handle(&job, photo_service).await;
+    let result = handle(&job, photo_service, embed_deps, pool).await;
 
     match result {
         Ok(()) => {
@@ -289,12 +344,28 @@ async fn process_one(
 async fn handle(
     job: &JobRow,
     photo_service: &ProductPhotoService,
+    embed_deps: Option<&EmbedWorkerDeps>,
+    pool: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     debug!(job_id = job.id, kind = %job.kind, "jobs:dispatch handler");
     match job.kind.as_str() {
-        KIND_UPLOAD_PRODUCT_IMAGES => upload_product_images::handle(job, photo_service).await,
+        KIND_UPLOAD_PRODUCT_IMAGES => {
+            upload_product_images::handle(job, photo_service, pool).await
+        }
         KIND_UPLOAD_PRODUCT_PREVIEW => upload_product_preview::handle(job, photo_service).await,
-        KIND_DELETE_PRODUCT_IMAGES => delete_product_images::handle(job, photo_service).await,
+        KIND_DELETE_PRODUCT_IMAGES => delete_product_images::handle(job, photo_service, pool).await,
+        KIND_EMBED_PRODUCT_IMAGES => {
+            let deps = embed_deps.ok_or_else(|| {
+                "embed_product_images received but embedder not configured".to_string()
+            })?;
+            let image_deps = embed_product_images::EmbedImagesDeps {
+                pool: pool.clone(),
+                storage: deps.storage.clone(),
+                images_bucket: deps.images_bucket.clone(),
+                embedder: deps.embedder.clone(),
+            };
+            embed_product_images::handle(job, &image_deps).await
+        }
         other => {
             warn!(job_id = job.id, kind = other, "jobs:unknown kind");
             Err(format!("unknown job kind: {other}").into())

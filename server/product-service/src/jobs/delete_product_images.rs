@@ -1,7 +1,14 @@
 //! Handler for the `delete_product_images` job kind.
 //!
 //! Payload shape: `{ "product_id": "<uuid>" }`
+//!
+//! Also clears the matching rows in `product_image_embeddings` so the
+//! semantic index stays in sync with S3. The DB row delete cascades via
+//! `FOREIGN KEY ... ON DELETE CASCADE` when the parent product is
+//! deleted; this handler runs even if the product stays around (just its
+//! S3 photos are wiped), so we issue the DELETE ourselves.
 
+use sqlx::PgPool;
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -30,6 +37,7 @@ pub fn parse(job: &Job) -> Result<Uuid, String> {
 pub async fn handle(
     job: &Job,
     photo_service: &ProductPhotoService,
+    pool: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     debug!(job_id = job.id, "jobs:handle delete_product_images start");
     let product_id = parse(job)?;
@@ -37,9 +45,18 @@ pub async fn handle(
         .delete_product_images(product_id)
         .await
         .map_err(|e| format!("delete_product_images failed: {e}"))?;
+
+    let deleted = sqlx::query("DELETE FROM product_image_embeddings WHERE product_id = $1")
+        .bind(product_id)
+        .execute(pool)
+        .await
+        .map_err(|e| format!("delete product_image_embeddings failed: {e}"))?
+        .rows_affected();
+
     info!(
         job_id = job.id,
         %product_id,
+        embeddings_deleted = deleted,
         "jobs:handle delete_product_images success"
     );
     Ok(())

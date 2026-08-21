@@ -1,5 +1,6 @@
 pub mod config;
 pub mod domain;
+pub mod embeddings;
 pub mod extractors;
 pub mod handler;
 pub mod jobs;

@@ -1,6 +1,6 @@
 services:
   postgres-product:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: postgres-product
     environment:
       POSTGRES_USER: ${PRODUCT_DB_USER:-postgres}
@@ -24,6 +24,7 @@ services:
       dockerfile: Dockerfile
     container_name: product-service
     environment:
+      SERVICE_MODE: server
       DATABASE_URL: postgres://${PRODUCT_DB_USER:-postgres}:${PRODUCT_DB_PASSWORD:-postgres}@postgres-product:5432/${PRODUCT_DB_NAME:-product_db}
       SERVICE_PORT: "8081"
       RUST_LOG: ${PRODUCT_RUST_LOG:-info,actix_web=info,product_service=debug,sqlx=warn}
@@ -34,9 +35,60 @@ services:
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       AWS_REGION: ${AWS_REGION:-us-east-1}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      MULTIMODAL_EMBED_PROVIDER: ${MULTIMODAL_EMBED_PROVIDER:-cohere}
+      MULTIMODAL_EMBED_MODEL: ${MULTIMODAL_EMBED_MODEL:-embed-multilingual-v3.0}
+      MULTIMODAL_EMBED_DIM: ${MULTIMODAL_EMBED_DIM:-1024}
+      MULTIMODAL_EMBED_API_KEY: ${MULTIMODAL_EMBED_API_KEY:-}
+      MULTIMODAL_EMBED_BASE_URL: ${MULTIMODAL_EMBED_BASE_URL:-https://api.cohere.com}
+      MULTIMODAL_EMBED_TIMEOUT_SECONDS: ${MULTIMODAL_EMBED_TIMEOUT_SECONDS:-15}
+      COHERE_IMAGE_THROTTLE_MS: ${COHERE_IMAGE_THROTTLE_MS:-13000}
+      HYBRID_TEXT_WEIGHT: ${HYBRID_TEXT_WEIGHT:-0.5}
+      HYBRID_IMAGE_WEIGHT: ${HYBRID_IMAGE_WEIGHT:-0.5}
+      IMAGE_EMBED_AGGREGATION: ${IMAGE_EMBED_AGGREGATION:-per_image}
+      IMAGE_EMBED_DAILY_CAP: ${IMAGE_EMBED_DAILY_CAP:-50000}
     depends_on:
       postgres-product:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+    restart: unless-stopped
+
+  # One-shot backfill: docker compose --profile backfill run --rm product-reindex-images
+  product-reindex-images:
+    profiles: ["backfill"]
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: product-reindex-images
+    environment:
+      SERVICE_MODE: reindex-images
+      DATABASE_URL: postgres://${PRODUCT_DB_USER:-postgres}:${PRODUCT_DB_PASSWORD:-postgres}@postgres-product:5432/${PRODUCT_DB_NAME:-product_db}
+      RUST_LOG: ${PRODUCT_RUST_LOG:-info,product_service=info,sqlx=warn}
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+    restart: "no"
+
+  product-text-embedder:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: product-text-embedder
+    environment:
+      SERVICE_MODE: text-embedder
+      DATABASE_URL: postgres://${PRODUCT_DB_USER:-postgres}:${PRODUCT_DB_PASSWORD:-postgres}@postgres-product:5432/${PRODUCT_DB_NAME:-product_db}
+      RUST_LOG: ${PRODUCT_RUST_LOG:-info,product_service=info,sqlx=warn}
+      MULTIMODAL_EMBED_PROVIDER: ${MULTIMODAL_EMBED_PROVIDER:-cohere}
+      MULTIMODAL_EMBED_MODEL: ${MULTIMODAL_EMBED_MODEL:-embed-multilingual-v3.0}
+      MULTIMODAL_EMBED_DIM: ${MULTIMODAL_EMBED_DIM:-1024}
+      MULTIMODAL_EMBED_API_KEY: ${MULTIMODAL_EMBED_API_KEY:-}
+      MULTIMODAL_EMBED_BASE_URL: ${MULTIMODAL_EMBED_BASE_URL:-https://api.cohere.com}
+      MULTIMODAL_EMBED_TIMEOUT_SECONDS: ${MULTIMODAL_EMBED_TIMEOUT_SECONDS:-15}
+      TEXT_EMBEDDER_BATCH_SIZE: ${TEXT_EMBEDDER_BATCH_SIZE:-64}
+      TEXT_EMBEDDER_INTERVAL_SECONDS: ${TEXT_EMBEDDER_INTERVAL_SECONDS:-600}
+      TEXT_EMBEDDER_DAILY_CAP: ${TEXT_EMBEDDER_DAILY_CAP:-50000}
+    depends_on:
+      postgres-product:
+        condition: service_healthy
     restart: unless-stopped

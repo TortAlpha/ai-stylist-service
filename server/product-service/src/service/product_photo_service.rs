@@ -72,8 +72,14 @@ impl ProductPhotoService {
 
     /// Upload product images. Each file is processed into 3 webp variants
     /// (thumb/medium/full) stored at `products/{id}/{n}/{variant}.webp`.
-    /// Returns the number of source files processed.
-    pub async fn upload_images(&self, product_id: Uuid, files: Vec<UploadFile>) -> Result<usize> {
+    /// Returns the list of newly-assigned image indices (in upload order)
+    /// so callers can enqueue downstream work (e.g. `embed_product_images`)
+    /// pointing at exactly the indices they just created.
+    pub async fn upload_images(
+        &self,
+        product_id: Uuid,
+        files: Vec<UploadFile>,
+    ) -> Result<Vec<usize>> {
         debug!(%product_id, files = files.len(), "service:upload_images");
         let validated: Vec<ValidatedUploadFile> = validate_upload_files(files)?;
 
@@ -84,6 +90,7 @@ impl ProductPhotoService {
             list_image_indices(&*self.image_storage, &self.images_bucket, &prefix).await?;
         let start_index = existing_indices.iter().max().map(|m| m + 1).unwrap_or(0);
         let count = validated.len();
+        let mut new_indices = Vec::with_capacity(count);
 
         for (i, file) in validated.into_iter().enumerate() {
             let idx = start_index + i;
@@ -96,10 +103,11 @@ impl ProductPhotoService {
                     .map_err(ServiceError::from)?;
                 debug!(%product_id, %key, "service:upload_images variant stored");
             }
+            new_indices.push(idx);
         }
 
         info!(%product_id, uploaded = count, "service:upload_images succeeded");
-        Ok(count)
+        Ok(new_indices)
     }
 
     /// Upload a preview image. Stored as 3 webp variants at
