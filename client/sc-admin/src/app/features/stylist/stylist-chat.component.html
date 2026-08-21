@@ -1,0 +1,119 @@
+<section class="stylist">
+  <header class="stylist__header">
+    <h1>{{ 'stylist.title' | translate }}</h1>
+    <div class="stylist__actions">
+      @if (conversationId() === null) {
+        <button
+          pButton
+          type="button"
+          icon="pi pi-plus"
+          [label]="'stylist.start' | translate"
+          (click)="start()"
+        ></button>
+      } @else {
+        <span class="stylist__convId">id: {{ conversationId() }}</span>
+        <button
+          pButton
+          type="button"
+          icon="pi pi-trash"
+          severity="secondary"
+          [label]="'stylist.clear' | translate"
+          (click)="clear()"
+        ></button>
+      }
+    </div>
+  </header>
+
+  @if (startError(); as err) {
+    <p-message severity="error" [text]="err"></p-message>
+  }
+
+  <div class="stylist__transcript" #transcript>
+    @if (conversationId() === null) {
+      <p class="stylist__empty">{{ 'stylist.emptyPrompt' | translate }}</p>
+    }
+
+    @for (msg of messages(); track trackByMessage($index, msg)) {
+      <article class="bubble" [class.bubble--user]="msg.role === 'user'" [class.bubble--assistant]="msg.role === 'assistant'">
+        <div class="bubble__role">{{ ('stylist.role.' + msg.role) | translate }}</div>
+
+        @if (msg.text) {
+          <div class="bubble__text">{{ msg.text }}</div>
+        }
+        @if (msg.streaming && !msg.text) {
+          <div class="bubble__text bubble__text--placeholder">…</div>
+        }
+
+        @if (msg.error; as err) {
+          <p-message
+            severity="warn"
+            [closable]="false"
+            [text]="('stylist.errorCode.' + err.code) | translate : { fallback: err.message }"
+          ></p-message>
+        }
+
+        @if (msg.productIds?.length) {
+          <div class="cards">
+            @for (id of msg.productIds; track trackById($index, id)) {
+              @let p = productFor(id);
+              <div class="card" [class.card--loading]="p === 'loading'" [class.card--error]="p === 'error'">
+                @if (p === 'loading') {
+                  <div class="card__placeholder">…</div>
+                } @else if (p === 'error') {
+                  <div class="card__placeholder">{{ 'stylist.cardError' | translate }}</div>
+                } @else if (p) {
+                  @if (productImageUrl(p); as url) {
+                    <img class="card__img" [src]="url" [alt]="p.name" />
+                  }
+                  <div class="card__body">
+                    <a class="card__title" [routerLink]="['/admin/products', p.id]">{{ p.name }}</a>
+                    <div class="card__meta">
+                      <span>{{ p.brand.name }}</span>
+                      @if (p.purchase_price) {
+                        <span>{{ p.purchase_price }} {{ p.currency }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </article>
+    }
+    <div #scrollAnchor></div>
+  </div>
+
+  <form class="stylist__composer" (ngSubmit)="send()">
+    <textarea
+      pTextarea
+      rows="2"
+      autoResize
+      [ngModel]="draft()"
+      (ngModelChange)="draft.set($event)"
+      name="message"
+      [placeholder]="'stylist.placeholder' | translate"
+      [disabled]="conversationId() === null"
+      (keydown.enter)="$event.preventDefault(); send()"
+    ></textarea>
+    <div class="stylist__composerButtons">
+      @if (streaming()) {
+        <button
+          pButton
+          type="button"
+          icon="pi pi-stop"
+          severity="secondary"
+          [label]="'stylist.abort' | translate"
+          (click)="abort()"
+        ></button>
+      }
+      <button
+        pButton
+        type="submit"
+        icon="pi pi-send"
+        [label]="'stylist.send' | translate"
+        [disabled]="!canSend()"
+      ></button>
+    </div>
+  </form>
+</section>

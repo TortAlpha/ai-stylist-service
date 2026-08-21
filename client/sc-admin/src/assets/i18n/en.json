@@ -724,5 +724,29 @@
       "maxImages": "Maximum 10 images",
       "noImages": "No images yet"
     }
+  },
+  "stylist": {
+    "title": "Stylist Chat",
+    "start": "New Conversation",
+    "clear": "Clear",
+    "send": "Send",
+    "abort": "Stop",
+    "placeholder": "Describe what you're looking for…",
+    "emptyPrompt": "Press \"New Conversation\" to start.",
+    "cardError": "Couldn't load card",
+    "role": {
+      "user": "You",
+      "assistant": "Stylist"
+    },
+    "errorCode": {
+      "rate_limited": "Rate limit hit. Try again in a minute.",
+      "upstream_unavailable": "Service temporarily unavailable.",
+      "bad_request": "Bad request.",
+      "internal": "Internal error.",
+      "transport": "Connection lost.",
+      "unauthorized": "Session expired, please log in again.",
+      "http_error": "HTTP error",
+      "no_body": "Empty response"
+    }
   }
 }

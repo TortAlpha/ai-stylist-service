@@ -48,6 +48,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
         routerLink: '/admin/brands',
       },
       {
+        label: this.t('stylist.title'),
+        icon: 'pi pi-comments',
+        routerLink: '/admin/stylist',
+      },
+      {
         label: this.t('nav.myProfile'),
         icon: 'pi pi-user',
         routerLink: '/admin/profile',
